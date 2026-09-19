@@ -24,7 +24,7 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtGui import (
     QBrush, QColor, QConicalGradient, QFont,
-    QFontDatabase, QKeySequence, QLinearGradient, QPainter, QPainterPath,
+    QFontDatabase, QIcon, QKeySequence, QLinearGradient, QPainter, QPainterPath,
     QPen, QPixmap, QRadialGradient, QShortcut,
 )
 from PyQt6.QtWidgets import (
@@ -2723,6 +2723,11 @@ class MainWindow(QMainWindow):
             apply_ui_accent(_ui_color)
 
         self.setWindowTitle(f"{_display} — {APP_VERSION}")
+        _ico = _base_dir() / "config" / "logo.ico"
+        if not _ico.exists():
+            _ico = _base_dir() / "config" / "jarvis.ico"
+        if _ico.exists():
+            self.setWindowIcon(QIcon(str(_ico)))
         self.setMinimumSize(_MIN_W, _MIN_H)
         self.resize(_DEFAULT_W, _DEFAULT_H)
 
@@ -3207,8 +3212,10 @@ class MainWindow(QMainWindow):
         python  = Path(sys.executable)
         desktop = self._get_desktop_dir()
 
-        # Arc-reactor icon (.ico — also exported as .png for Linux/macOS)
-        ico_path = Path(__file__).resolve().parent / "config" / "jarvis.ico"
+        # Application icon (.ico — also exported as .png for Linux/macOS)
+        ico_path = Path(__file__).resolve().parent / "config" / "logo.ico"
+        if not ico_path.exists():
+            ico_path = Path(__file__).resolve().parent / "config" / "jarvis.ico"
         if not ico_path.exists():
             self._build_jarvis_icon(ico_path)
 
@@ -3462,11 +3469,21 @@ class MainWindow(QMainWindow):
 
         mid = QVBoxLayout(); mid.setSpacing(1)
         _disp = self._assistant_name.upper()
+        mid_top = QHBoxLayout(); mid_top.setSpacing(8); mid_top.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_img = _base_dir() / "config" / "logo.png"
+        if logo_img.exists():
+            self._logo_lbl = QLabel()
+            self._logo_lbl.setFixedSize(26, 26)
+            self._logo_lbl.setScaledContents(True)
+            self._logo_lbl.setPixmap(QPixmap(str(logo_img)))
+            self._logo_lbl.setStyleSheet("background: transparent; border-radius: 13px;")
+            mid_top.addWidget(self._logo_lbl)
         self._title_lbl = QLabel(_disp)
         self._title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._title_lbl.setFont(QFont("Courier New", 17, QFont.Weight.Bold))
         self._title_lbl.setStyleSheet(f"color: {C.PRI}; background: transparent;")
-        mid.addWidget(self._title_lbl)
+        mid_top.addWidget(self._title_lbl)
+        mid.addLayout(mid_top)
         _sub_text = "Personal AI Assistant"
         self._sub_lbl = QLabel(_sub_text)
         self._sub_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -5000,6 +5017,11 @@ class JarvisUI:
             except Exception:
                 pass
         self._app.setStyle("Fusion")
+        _ico = _base_dir() / "config" / "logo.ico"
+        if not _ico.exists():
+            _ico = _base_dir() / "config" / "jarvis.ico"
+        if _ico.exists():
+            self._app.setWindowIcon(QIcon(str(_ico)))
         self._win = MainWindow(face_path)
         self.root = _RootShim(self._app)
         self._win.show()
