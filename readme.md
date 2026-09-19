@@ -1,8 +1,4 @@
-<div align="center">
-  <img src="config/logo.png" width="180" alt="LUCY Logo" />
-  <h1>LUCY</h1>
-  <p><strong>Cross-Platform Real-Time Desktop AI Assistant</strong></p>
-</div>
+# LUCY
 
 LUCY is a cross-platform, real-time desktop AI assistant that can hear, see, speak, and interact with your computer. Built with Python, PyQt6, and the Gemini Live API, LUCY provides low-latency bi-directional voice conversation, computer automation, visual perception, persistent memory, and a customizable futuristic desktop interface.
 

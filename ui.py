@@ -3469,21 +3469,11 @@ class MainWindow(QMainWindow):
 
         mid = QVBoxLayout(); mid.setSpacing(1)
         _disp = self._assistant_name.upper()
-        mid_top = QHBoxLayout(); mid_top.setSpacing(8); mid_top.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_img = _base_dir() / "config" / "logo.png"
-        if logo_img.exists():
-            self._logo_lbl = QLabel()
-            self._logo_lbl.setFixedSize(26, 26)
-            self._logo_lbl.setScaledContents(True)
-            self._logo_lbl.setPixmap(QPixmap(str(logo_img)))
-            self._logo_lbl.setStyleSheet("background: transparent; border-radius: 13px;")
-            mid_top.addWidget(self._logo_lbl)
         self._title_lbl = QLabel(_disp)
         self._title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._title_lbl.setFont(QFont("Courier New", 17, QFont.Weight.Bold))
         self._title_lbl.setStyleSheet(f"color: {C.PRI}; background: transparent;")
-        mid_top.addWidget(self._title_lbl)
-        mid.addLayout(mid_top)
+        mid.addWidget(self._title_lbl)
         _sub_text = "Personal AI Assistant"
         self._sub_lbl = QLabel(_sub_text)
         self._sub_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
