@@ -1396,8 +1396,19 @@ class JarvisLive:
 
             if not self.ui.muted and not self._phone_active:
                 data = indata.tobytes()
+                def _safe_put_mic(chunk):
+                    try:
+                        if self.out_queue is not None:
+                            if self.out_queue.full():
+                                try:
+                                    self.out_queue.get_nowait()
+                                except Exception:
+                                    pass
+                            self.out_queue.put_nowait(chunk)
+                    except Exception:
+                        pass
                 loop.call_soon_threadsafe(
-                    self.out_queue.put_nowait,
+                    _safe_put_mic,
                     {"data": data, "mime_type": "audio/pcm"}
                 )
                 # Feed the live mic level to the HUD so the waveform reacts to

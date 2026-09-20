@@ -141,6 +141,9 @@ class HoloAvatar:
         self._speaking: bool = False
         self._muted: bool = False
         self._state: str = "INITIALISING"
+        self._raw_rgba: np.ndarray | None = None
+        self._anim_pm_cache: QPixmap | None = None
+        self._anim_cache_key: tuple = ()
 
         if self.USE_WIREFRAME_ASSET:
             self._load_wireframe()
@@ -539,6 +542,7 @@ class HoloAvatar:
                 return False
 
             h, w, _ = rgba.shape
+            self._raw_rgba = rgba
             qimg = QImage(rgba.data, w, h, w * 4, QImage.Format.Format_RGBA8888)
             self._wireframe_pm = QPixmap.fromImage(qimg)
             self._aspect_ratio = float(w) / float(h)
@@ -555,7 +559,7 @@ class HoloAvatar:
 
     def _paint_wireframe_asset(self, p: QPainter, cx: float, cy: float, r: float,
                                primary: QColor, accent: QColor, bg: QColor, amp: float) -> None:
-        """Render the holographic wireframe avatar from the loaded asset."""
+        """Render the holographic wireframe avatar from the loaded asset with real-time lip-sync and eye movement."""
         if self._wireframe_pm is None or self._wireframe_pm.isNull():
             return
 
@@ -588,25 +592,139 @@ class HoloAvatar:
         gx = self._gaze[0] * r * 0.04 + math.sin(self._sway * 0.7) * 2.0
         gy = self._gaze[1] * r * 0.04 + math.cos(self._sway * 0.5) * 1.5
 
-        # 3. Scaled pixmap with caching for 60 FPS performance
+        # 3. Dynamic animation state (mouth lip-sync, blink, gaze)
         iw, ih = int(round(target_w)), int(round(target_h))
-        if (self._scaled_pm_cache is None or
-            abs(self._scaled_size_cache[0] - iw) > 2 or
-            abs(self._scaled_size_cache[1] - ih) > 2):
-            self._scaled_pm_cache = self._wireframe_pm.scaled(
-                iw, ih,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self._scaled_size_cache = (iw, ih)
+        mouth_val = float(self._mouth)
+        blink_val = float(self._blink)
+        gx_val = float(self._gaze[0])
+        gy_val = float(self._gaze[1])
+        is_anim = (mouth_val > 0.01 or blink_val > 0.02 or abs(gx_val) > 0.02 or abs(gy_val) > 0.02)
 
-        pm_to_draw = self._scaled_pm_cache
+        pm_to_draw = None
+        if not is_anim or self._raw_rgba is None:
+            # Idle: use standard scaled pixmap of the original asset with zero overhead
+            if (self._scaled_pm_cache is None or
+                abs(self._scaled_size_cache[0] - iw) > 2 or
+                abs(self._scaled_size_cache[1] - ih) > 2):
+                self._scaled_pm_cache = self._wireframe_pm.scaled(
+                    iw, ih,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self._scaled_size_cache = (iw, ih)
+            pm_to_draw = self._scaled_pm_cache
+        else:
+            # Animated: generate seamless unified face frame without double-blending or edge seams
+            anim_key = (round(mouth_val, 2), round(blink_val, 2), round(gx_val, 2), round(gy_val, 2), iw, ih)
+            if self._anim_pm_cache is not None and self._anim_cache_key == anim_key:
+                pm_to_draw = self._anim_pm_cache
+            else:
+                try:
+                    frame_arr = self._raw_rgba.copy()
+
+                    # Mouth Lip-Sync: smooth anatomical parting of the wireframe lips
+                    if mouth_val > 0.01:
+                        x0, x1 = 250, 430
+                        y0, y1 = 625, 700
+                        cx_m = 340.0
+                        half_w = 78.0
+
+                        patch = self._raw_rgba[y0:y1, x0:x1]
+                        h_p, w_p, _ = patch.shape
+                        ys = np.arange(y0, y1)[:, None]
+                        xs = np.arange(x0, x1)[None, :]
+                        xs_bc = np.broadcast_to(xs, (ys.shape[0], xs.shape[1]))
+                        dx = np.abs(xs - cx_m)
+                        wx = np.where(dx < half_w, 0.5 * (1.0 + np.cos(np.pi * dx / half_w)), 0.0)
+                        y_rest = np.where(dx < half_w, 657.5 + 3.0 * np.cos(np.pi * dx / half_w), 656.0)
+
+                        dy_down = mouth_val * 13.0 * wx
+                        dy_up = -mouth_val * 3.5 * wx
+                        y_top = y_rest + dy_up
+                        y_bot = y_rest + dy_down
+
+                        m_out = np.zeros_like(patch)
+                        mask_up = ys <= y_top
+                        frac_up = (ys - y0) / np.maximum(0.1, y_top - y0)
+                        sy_up = np.clip(np.round(y0 + frac_up * (y_rest - y0)).astype(int), y0, np.round(y_rest).astype(int))
+                        m_out[mask_up] = patch[sy_up[mask_up] - y0, xs_bc[mask_up] - x0]
+
+                        mask_bot = ys >= y_bot
+                        frac_bot = (ys - y_bot) / np.maximum(0.1, y1 - y_bot)
+                        sy_bot = np.clip(np.round(y_rest + frac_bot * (y1 - y_rest)).astype(int), np.round(y_rest).astype(int), y1 - 1)
+                        m_out[mask_bot] = patch[sy_bot[mask_bot] - y0, xs_bc[mask_bot] - x0]
+
+                        mask_mid = ~mask_up & ~mask_bot
+                        gap = np.maximum(0.1, y_bot - y_top)
+                        rel_y = (ys - y_top) / gap
+
+                        wf_col = np.array([40, 180, 240, 220], dtype=np.uint8)
+                        dark_mouth = np.array([4, 8, 16, 240], dtype=np.uint8)
+                        teeth_mask = mask_mid & (rel_y < 0.28) & (wx > 0.25)
+                        bot_lip_wire = mask_mid & (rel_y > 0.75) & (wx > 0.25)
+                        cavity_rest = mask_mid & ~teeth_mask & ~bot_lip_wire
+
+                        m_out[cavity_rest] = dark_mouth
+                        m_out[teeth_mask] = wf_col
+                        m_out[bot_lip_wire] = (wf_col * 0.7).astype(np.uint8)
+                        frame_arr[y0:y1, x0:x1] = m_out
+
+                    # Natural Eye Movement & Blinking
+                    if blink_val > 0.02 or abs(gx_val) > 0.02 or abs(gy_val) > 0.02:
+                        eyes_def = [
+                            (211.0, 423.0, 160, 265, 408.0, 438.0),
+                            (468.0, 422.0, 415, 520, 408.0, 438.0),
+                        ]
+                        for ecx, ecy, exmin, exmax, eytop, eybot in eyes_def:
+                            ew = (exmax - exmin) / 2.0
+                            eh = (eybot - eytop) / 2.0
+                            e_ys = np.arange(int(eytop) - 4, int(eybot) + 4)[:, None]
+                            e_xs = np.arange(exmin, exmax)[None, :]
+                            e_xs_bc = np.broadcast_to(e_xs, (e_ys.shape[0], e_xs.shape[1]))
+                            edx = e_xs - ecx
+                            edy = e_ys - ecy
+                            dist_sq = (edx / (ew * 0.85))**2 + (edy / (eh * 0.95))**2
+                            in_eye = dist_sq <= 1.0
+
+                            w_gaze = np.exp(-((edx / 18.0)**2 + (edy / 12.0)**2)) * (1.0 - blink_val * 0.7)
+                            esx = np.clip(np.round(e_xs_bc - gx_val * 3.8 * w_gaze).astype(int), 0, 682)
+                            esy = np.clip(np.round(e_ys - gy_val * 2.2 * w_gaze).astype(int), 0, 1023)
+
+                            patch_eye = self._raw_rgba[int(eytop) - 4:int(eybot) + 4, exmin:exmax].copy()
+                            patch_eye[in_eye] = self._raw_rgba[esy[in_eye], esx[in_eye]]
+
+                            if blink_val > 0.02:
+                                lid_profile = np.maximum(0.0, 1.0 - (edx / (ew * 0.88))**2) ** 0.5
+                                cur_lid = eytop + (eybot - eytop + 5.0) * blink_val * lid_profile
+                                lid_covered = in_eye & (e_ys <= cur_lid)
+                                sample_y = np.clip(np.round(eytop - 2.0 - (cur_lid - e_ys) * 0.3).astype(int), 0, 1023)
+                                patch_eye[lid_covered] = self._raw_rgba[sample_y[lid_covered], e_xs_bc[lid_covered]]
+                                seam_dist = np.abs(e_ys - cur_lid)
+                                seam_mask = in_eye & (seam_dist < 1.6) & (blink_val > 0.1)
+                                patch_eye[seam_mask] = np.array([40, 190, 240, int(220 * blink_val)], dtype=np.uint8)
+
+                            frame_arr[int(eytop) - 4:int(eybot) + 4, exmin:exmax] = patch_eye
+
+                    fh, fw, _ = frame_arr.shape
+                    qimg = QImage(frame_arr.data, fw, fh, fw * 4, QImage.Format.Format_RGBA8888)
+                    raw_pm = QPixmap.fromImage(qimg)
+                    self._anim_pm_cache = raw_pm.scaled(
+                        iw, ih,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                    self._anim_cache_key = anim_key
+                    pm_to_draw = self._anim_pm_cache
+                except Exception:
+                    pm_to_draw = self._scaled_pm_cache
+
+        # 4. Paint the face
         if pm_to_draw is not None and not pm_to_draw.isNull():
             px = cx - pm_to_draw.width() / 2.0 + gx
             py = cy - pm_to_draw.height() / 2.0 + gy
             p.drawPixmap(int(round(px)), int(round(py)), pm_to_draw)
 
-            # 4. Subtle holographic horizontal scanline
+            # 5. Subtle holographic horizontal scanline
             scan_rel = self._scan_phase % 1.0
             scan_y = py + scan_rel * pm_to_draw.height()
             scan_w = pm_to_draw.width() * 0.85
