@@ -19,7 +19,7 @@ else:
     _WIN_HIDE: dict = {}
 
 from PyQt6.QtCore import (
-    QEasingCurve, QLineF, QObject, QParallelAnimationGroup, QPointF,
+    QByteArray, QEasingCurve, QLineF, QObject, QParallelAnimationGroup, QPointF,
     QPropertyAnimation, QRect, QRectF, QSize, Qt, QTimer, QUrl, pyqtSignal,
 )
 from PyQt6.QtGui import (
@@ -32,6 +32,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QPushButton, QScrollArea, QSizePolicy, QSplitter,
     QStackedWidget, QTextEdit, QVBoxLayout, QWidget, QProgressBar,
 )
+from PyQt6.QtSvg import QSvgRenderer
 
 try:
     from core.avatar import HoloAvatar
@@ -103,6 +104,68 @@ _HUE_LINKED = (
 _PALETTE_DEFAULTS: dict[str, str] = {k: getattr(C, k) for k in _HUE_LINKED}
 
 DEFAULT_UI_COLOR = _PALETTE_DEFAULTS["PRI"]
+
+
+# ── SVG Icon System (HUD / Cyber aesthetic) ──────────────────────────────────
+_SVG_ICONS: dict[str, str] = {
+    "close": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'><line x1='3.5' y1='3.5' x2='12.5' y2='12.5'/><line x1='12.5' y1='3.5' x2='3.5' y2='12.5'/></svg>",
+    "settings": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><circle cx='8' cy='8' r='2.3'/><path d='M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3'/></svg>",
+    "arrow_right": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='currentColor'><path d='M5.5 3.5l6 4.5-6 4.5z'/></svg>",
+    "interrupt": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><path d='M5.5 8V4a1 1 0 0 1 2 0v4m0-2.5V3a1 1 0 0 1 2 0v5.5m0-1.5V4.5a1 1 0 0 1 2 0v4.5a3.5 3.5 0 0 1-3.5 3.5h-1A3.5 3.5 0 0 1 3.5 9V7a1 1 0 0 1 2 0v2'/></svg>",
+    "mic": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><rect x='5.5' y='2' width='5' height='7' rx='2.5'/><path d='M3 7.5a5 5 0 0 0 10 0M8 12.5v2M5.5 14.5h5'/></svg>",
+    "mic_off": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><line x1='2' y1='2' x2='14' y2='14'/><rect x='5.5' y='2' width='5' height='7' rx='2.5'/><path d='M3 7.5a5 5 0 0 0 8.5 3.5M8 12.5v2M5.5 14.5h5'/></svg>",
+    "remote": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'><rect x='4.5' y='1.5' width='7' height='13' rx='2'/><circle cx='8' cy='4.5' r='1' fill='currentColor' stroke='none'/><line x1='6.5' y1='7.5' x2='9.5' y2='7.5'/><line x1='6.5' y1='9.5' x2='9.5' y2='9.5'/><line x1='6.5' y1='11.5' x2='9.5' y2='11.5'/></svg>",
+    "fullscreen": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M2.5 5.5v-3h3M13.5 5.5v-3h-3M2.5 10.5v3h3M13.5 10.5v3h-3'/></svg>",
+    "desktop_shortcut": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='2.5' width='12' height='9' rx='1.5'/><line x1='5' y1='14' x2='11' y2='14'/><line x1='8' y1='11.5' x2='8' y2='14'/></svg>",
+    "autostart_on": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.4'><circle cx='8' cy='8' r='6'/><circle cx='8' cy='8' r='2.5' fill='currentColor' stroke='none'/></svg>",
+    "autostart_off": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.4'><circle cx='8' cy='8' r='6'/></svg>",
+    "headphones": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><path d='M2.5 8.5a5.5 5.5 0 0 1 11 0v4a1.5 1.5 0 0 1-1.5 1.5h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h2.5'/><path d='M2.5 9H5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H4a1.5 1.5 0 0 1-1.5-1.5v-4z'/></svg>",
+    "memory": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='8' height='8' rx='1.5'/><circle cx='8' cy='8' r='1.5' fill='currentColor' stroke='none'/><path d='M8 1.5v2.5M8 12v2.5M1.5 8h2.5M12 8h2.5M4 6H2M4 10H2M14 6h-2M14 10h-2'/></svg>",
+    "plugin": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><path d='M3 4a1 1 0 0 1 1-1h3v1a1.5 1.5 0 0 0 3 0V3h3a1 1 0 0 1 1 1v3h-1a1.5 1.5 0 0 0 0 3h1v3a1 1 0 0 1-1 1h-3v-1a1.5 1.5 0 0 0-3 0v1H4a1 1 0 0 1-1-1v-3h1a1.5 1.5 0 0 0 0-3H3V4z'/></svg>",
+    "download": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2.5v7.5M4.5 7l3.5 3.5 3.5-3.5M3 13.5h10'/></svg>",
+    "sleep": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.4' stroke-linecap='round'><path d='M13 9.2A5.5 5.5 0 0 1 6.8 3a6 6 0 1 0 6.2 6.2z'/></svg>",
+    "wake": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'><circle cx='6' cy='8' r='3'/><path d='M10.5 5a4.5 4.5 0 0 1 0 6M12.8 3a7.5 7.5 0 0 1 0 10'/></svg>",
+    "ptt": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'><line x1='4' y1='2' x2='4' y2='14'/><line x1='8' y1='2' x2='8' y2='14'/><line x1='12' y1='2' x2='12' y2='14'/><circle cx='4' cy='6' r='2' fill='currentColor'/><circle cx='8' cy='10' r='2' fill='currentColor'/><circle cx='12' cy='5' r='2' fill='currentColor'/></svg>",
+    "face": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'><circle cx='8' cy='5.5' r='3'/><path d='M3.5 13.5c0-2.2 2-3.5 4.5-3.5s4.5 1.3 4.5 3.5'/></svg>",
+    "reactor": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3'><circle cx='8' cy='8' r='6'/><circle cx='8' cy='8' r='3'/><circle cx='8' cy='8' r='1' fill='currentColor' stroke='none'/></svg>",
+    "sun": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'><circle cx='8' cy='8' r='2.8'/><line x1='8' y1='1.5' x2='8' y2='3'/><line x1='8' y1='13' x2='8' y2='14.5'/><line x1='1.5' y1='8' x2='3' y2='8'/><line x1='13' y1='8' x2='14.5' y2='8'/><line x1='3.4' y1='3.4' x2='4.5' y2='4.5'/><line x1='11.5' y1='11.5' x2='12.6' y2='12.6'/><line x1='3.4' y1='12.6' x2='4.5' y2='11.5'/><line x1='11.5' y1='4.5' x2='12.6' y2='3.4'/></svg>",
+    "warning": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2.2l6 11H2L8 2.2z'/><line x1='8' y1='6' x2='8' y2='9'/><circle cx='8' cy='11' r='0.7' fill='currentColor' stroke='none'/></svg>",
+    "check": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 6.5,12 13,4.5'/></svg>",
+    "windows": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='currentColor'><path d='M2 3.5l5-.7v4.7H2zm5.8-.8l6.2-.9v5.6H7.8zm0 5.6H14v5.6l-6.2-.9zm-5.8 0h5v4.7l-5-.7z'/></svg>",
+    "apple": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='currentColor'><path d='M10.2 2.5a2.2 2.2 0 0 0-.5-1.5 2.3 2.3 0 0 0-1.6.8 2.1 2.1 0 0 0 .5 1.5 2 2 0 0 0 1.6-.8zm1.8 4.2c-.1-.1-1.3-.7-1.3-2.1 0-1.2 1-1.8 1.1-1.9-.6-.8-1.5-.9-1.8-.9-.8-.1-1.6.5-2 .5s-1.1-.5-1.7-.5c-.9 0-1.7.5-2.2 1.3-1 1.7-.3 4.2.7 5.6.5.7 1 1.5 1.8 1.5.7 0 1-.5 1.8-.5s1.1.5 1.8.4c.8 0 1.3-.7 1.8-1.4.6-.8.8-1.6.8-1.6s-1-.4-1-1.3z'/></svg>",
+    "linux": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='2.5' width='12' height='11' rx='1.5'/><polyline points='4.5,6.5 7,8 4.5,9.5'/><line x1='8' y1='10.5' x2='11' y2='10.5'/></svg>",
+    "send": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='currentColor'><path d='M2.5 13.5l11-5.5-11-5.5v4.2l7 1.3-7 1.3z'/></svg>",
+}
+
+
+def _svg_icon(name: str, color: str = None, size: int = 14) -> QIcon:
+    """Render an inline SVG string to a high-DPI QIcon matching LUCY's HUD aesthetic."""
+    if color is None:
+        color = C.PRI
+    svg_raw = _SVG_ICONS.get(name)
+    if not svg_raw:
+        return QIcon()
+    svg_data = svg_raw.replace("currentColor", color).encode("utf-8")
+    renderer = QSvgRenderer(QByteArray(svg_data))
+    scale = 2
+    pix = QPixmap(size * scale, size * scale)
+    pix.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pix)
+    renderer.render(painter)
+    painter.end()
+    pix.setDevicePixelRatio(scale)
+    return QIcon(pix)
+
+
+def _set_btn_icon(btn: QPushButton, icon_name: str, text: str = None, color: str = None, size: int = 14) -> None:
+    """Convenience helper to set an SVG icon, icon size, and optional text on a QPushButton."""
+    if icon_name:
+        btn.setIcon(_svg_icon(icon_name, color, size))
+        btn.setIconSize(QSize(size, size))
+    else:
+        btn.setIcon(QIcon())
+    if text is not None:
+        btn.setText(text)
 
 
 def apply_ui_accent(accent_hex: str) -> bool:
@@ -1103,9 +1166,10 @@ class _CameraPreview(QWidget):
         title.setStyleSheet(f"color: {C.PRI}; background: transparent;")
         hdr.addWidget(title)
         hdr.addStretch()
-        close_btn = QPushButton("✕")
+        close_btn = QPushButton()
+        close_btn.setIcon(_svg_icon("close", C.TEXT_DIM, 10))
+        close_btn.setIconSize(QSize(10, 10))
         close_btn.setFixedSize(16, 16)
-        close_btn.setFont(QFont("Courier New", 8))
         close_btn.setStyleSheet(
             f"color: {C.TEXT_DIM}; background: transparent; border: none;"
         )
@@ -1212,8 +1276,10 @@ class SetupOverlay(QWidget):
 
         os_row = QHBoxLayout(); os_row.setSpacing(6)
         self._os_btns: dict[str, QPushButton] = {}
-        for key, label in [("windows","⊞  Windows"),("mac","  macOS"),("linux","🐧  Linux")]:
+        for key, label, icon_name in [("windows", "  Windows", "windows"), ("mac", "  macOS", "apple"), ("linux", "  Linux", "linux")]:
             btn = QPushButton(label)
+            btn.setIcon(_svg_icon(icon_name, C.PRI, 14))
+            btn.setIconSize(QSize(14, 14))
             btn.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
             btn.setFixedHeight(32)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1224,7 +1290,9 @@ class SetupOverlay(QWidget):
         self._sel(detected)
         layout.addSpacing(12)
 
-        init_btn = QPushButton("▸  INITIALISE SYSTEMS")
+        init_btn = QPushButton("  INITIALISE SYSTEMS")
+        init_btn.setIcon(_svg_icon("arrow_right", C.PRI, 12))
+        init_btn.setIconSize(QSize(12, 12))
         init_btn.setFont(QFont("Courier New", 10, QFont.Weight.Bold))
         init_btn.setFixedHeight(36)
         init_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1243,9 +1311,11 @@ class SetupOverlay(QWidget):
     def _sel(self, key: str):
         self._sel_os = key
         pal = {"windows":(C.PRI,"#001a22"),"mac":(C.ACC2,"#1a1400"),"linux":(C.GREEN,"#001a0d")}
+        icons = {"windows": "windows", "mac": "apple", "linux": "linux"}
         for k, btn in self._os_btns.items():
             if k == key:
                 fg, bg = pal[k]
+                btn.setIcon(_svg_icon(icons[k], bg, 14))
                 btn.setStyleSheet(f"""
                     QPushButton {{
                         background: {fg}; color: {bg};
@@ -1253,6 +1323,7 @@ class SetupOverlay(QWidget):
                     }}
                 """)
             else:
+                btn.setIcon(_svg_icon(icons[k], C.TEXT_DIM, 14))
                 btn.setStyleSheet(f"""
                     QPushButton {{
                         background: #000d12; color: {C.TEXT_DIM};
@@ -1398,7 +1469,7 @@ class CustomizeOverlay(QWidget):
                f"border: 1px solid {C.BORDER}; border-radius: 3px; padding: 4px 8px; }}"
                f"QLineEdit:focus {{ border: 1px solid {C.PRI}; }}")
 
-        lay.addWidget(_lbl("⚙  CUSTOMISE ASSISTANT", 12, True))
+        lay.addWidget(_lbl("CUSTOMISE ASSISTANT", 12, True))
         sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
         sep.setStyleSheet(f"color: {C.BORDER}; margin: 2px 0;")
         lay.addWidget(sep)
@@ -1488,7 +1559,9 @@ class CustomizeOverlay(QWidget):
         lay.addSpacing(6)
         btn_row = QHBoxLayout(); btn_row.setSpacing(8)
 
-        save_btn = QPushButton("▸  APPLY CHANGES")
+        save_btn = QPushButton("  APPLY CHANGES")
+        save_btn.setIcon(_svg_icon("arrow_right", C.PRI, 12))
+        save_btn.setIconSize(QSize(12, 12))
         save_btn.setFixedHeight(34)
         save_btn.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
         save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1605,7 +1678,7 @@ class PluginManagerOverlay(QWidget):
         lay.setContentsMargins(20, 16, 20, 16)
         lay.setSpacing(6)
 
-        hdr = QLabel("🧩  PLUGIN MANAGER")
+        hdr = QLabel("PLUGIN MANAGER")
         hdr.setFont(QFont("Courier New", 12, QFont.Weight.Bold))
         hdr.setStyleSheet(f"color: {C.PRI}; background: transparent;")
         lay.addWidget(hdr)
@@ -1641,7 +1714,7 @@ class PluginManagerOverlay(QWidget):
     def _build_row(self, p: dict) -> QHBoxLayout:
         row = QHBoxLayout(); row.setSpacing(6)
 
-        label_text = p["name"] if p["valid"] else f"{p['name']}  (⚠ {p['file']})"
+        label_text = p["name"] if p["valid"] else f"{p['name']}  (! {p['file']})"
         lbl = QLabel(label_text)
         lbl.setFont(QFont("Courier New", 8))
         lbl.setStyleSheet(f"color: {C.TEXT if p['valid'] else C.TEXT_DIM}; background: transparent;")
@@ -1746,7 +1819,7 @@ class ConfirmBanner(_HudOverlay):
         lay.setContentsMargins(20, 16, 20, 16)
         lay.setSpacing(8)
 
-        hdr = QLabel("⚠  CONFIRM")
+        hdr = QLabel("CONFIRM")
         hdr.setFont(QFont("Courier New", 11, QFont.Weight.Bold))
         hdr.setStyleSheet(f"color: {C.ACC}; background: transparent;")
         lay.addWidget(hdr)
@@ -1766,7 +1839,9 @@ class ConfirmBanner(_HudOverlay):
 
         row = QHBoxLayout(); row.setSpacing(8)
 
-        yes = QPushButton("▸  CONFIRM")
+        yes = QPushButton("  CONFIRM")
+        yes.setIcon(_svg_icon("arrow_right", C.ACC, 12))
+        yes.setIconSize(QSize(12, 12))
         yes.setFixedHeight(32)
         yes.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
         yes.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1827,7 +1902,7 @@ class AudioDeviceOverlay(_HudOverlay):
         lay.setContentsMargins(20, 16, 20, 16)
         lay.setSpacing(6)
 
-        hdr = QLabel("🎧  AUDIO DEVICES")
+        hdr = QLabel("AUDIO DEVICES")
         hdr.setFont(QFont("Courier New", 12, QFont.Weight.Bold))
         hdr.setStyleSheet(f"color: {C.PRI}; background: transparent;")
         lay.addWidget(hdr)
@@ -1884,7 +1959,9 @@ class AudioDeviceOverlay(_HudOverlay):
         lay.addWidget(note)
 
         row = QHBoxLayout(); row.setSpacing(8)
-        ok = QPushButton("▸  APPLY")
+        ok = QPushButton("  APPLY")
+        ok.setIcon(_svg_icon("arrow_right", C.PRI, 12))
+        ok.setIconSize(QSize(12, 12))
         ok.setFixedHeight(32)
         ok.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
         ok.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -2021,7 +2098,7 @@ class MemoryOverlay(_HudOverlay):
 
         from memory.memory_manager import all_entries_for_ui
 
-        hdr = QLabel("🧠  WHAT LUCY REMEMBERS")
+        hdr = QLabel("WHAT LUCY REMEMBERS")
         hdr.setFont(QFont("Courier New", 12, QFont.Weight.Bold))
         hdr.setStyleSheet(f"color: {C.PRI}; background: transparent;")
         self._lay.addWidget(hdr)
@@ -2072,7 +2149,9 @@ class MemoryOverlay(_HudOverlay):
                 meta.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
                 line.addWidget(meta)
 
-                rm = QPushButton("✕")
+                rm = QPushButton()
+                rm.setIcon(_svg_icon("close", C.TEXT_DIM, 10))
+                rm.setIconSize(QSize(10, 10))
                 rm.setFixedSize(20, 20)
                 rm.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
                 rm.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -2150,7 +2229,9 @@ class ClipboardPanel(QWidget):
         icon_lbl.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
         icon_lbl.setStyleSheet(f"color: {C.ACC2}; background: transparent;")
         hdr.addWidget(icon_lbl); hdr.addStretch()
-        x_btn = QPushButton("✕")
+        x_btn = QPushButton()
+        x_btn.setIcon(_svg_icon("close", C.TEXT_DIM, 10))
+        x_btn.setIconSize(QSize(10, 10))
         x_btn.setFixedSize(16, 16)
         x_btn.setFont(QFont("Courier New", 8))
         x_btn.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
@@ -2246,7 +2327,7 @@ class PluginSettingsOverlay(QWidget):
         root.setContentsMargins(22, 16, 22, 16)
         root.setSpacing(8)
 
-        root.addWidget(self._lbl("⚙  PLUGIN SETTINGS", 12, True))
+        root.addWidget(self._lbl("PLUGIN SETTINGS", 12, True))
         sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
         sep.setStyleSheet(f"color: {C.BORDER}; margin: 2px 0;")
         root.addWidget(sep)
@@ -2275,7 +2356,9 @@ class PluginSettingsOverlay(QWidget):
         # ── bottom buttons ───────────────────────────────────────────────────
         btn_row = QHBoxLayout(); btn_row.setSpacing(8)
         if self._sections:
-            save_btn = QPushButton("▸  SAVE")
+            save_btn = QPushButton("  SAVE")
+            save_btn.setIcon(_svg_icon("arrow_right", C.PRI, 12))
+            save_btn.setIconSize(QSize(12, 12))
             save_btn.setFixedHeight(34)
             save_btn.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
             save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -2692,6 +2775,337 @@ class RemoteKeyOverlay(QWidget):
         self.closed.emit()
 
 
+class SettingsModalOverlay(QWidget):
+    """Full-window in-app modal overlay with dimmed backdrop and centered Settings panel."""
+
+    def __init__(self, main_win: 'MainWindow', parent=None):
+        super().__init__(parent or main_win.centralWidget())
+        self._main_win = main_win
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background: rgba(0, 4, 8, 0.78);")
+        self.hide()
+
+        # Inner dialog card
+        self._card = QWidget(self)
+        self._card.setObjectName("SettingsModalCard")
+        self._card.setStyleSheet(f"""
+            QWidget#SettingsModalCard {{
+                background: {C.PANEL};
+                border: 1px solid {C.BORDER_B};
+                border-radius: 6px;
+            }}
+        """)
+
+        card_layout = QVBoxLayout(self._card)
+        card_layout.setContentsMargins(18, 14, 18, 16)
+        card_layout.setSpacing(10)
+
+        # ── Header Row ────────────────────────────────────────────────────────
+        hdr = QHBoxLayout()
+        hdr.setContentsMargins(0, 0, 0, 0)
+        hdr.setSpacing(8)
+
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(_svg_icon("settings", C.PRI, 18).pixmap(18, 18))
+        icon_lbl.setStyleSheet("background: transparent;")
+        hdr.addWidget(icon_lbl)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(1)
+        title_lbl = QLabel("SETTINGS")
+        title_lbl.setFont(QFont("Courier New", 12, QFont.Weight.Bold))
+        title_lbl.setStyleSheet(f"color: {C.PRI}; background: transparent; letter-spacing: 1.5px;")
+        title_col.addWidget(title_lbl)
+
+        sub_lbl = QLabel("SYSTEM CONTROLS & PREFERENCES")
+        sub_lbl.setFont(QFont("Courier New", 7))
+        sub_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
+        title_col.addWidget(sub_lbl)
+        hdr.addLayout(title_col)
+
+        hdr.addStretch()
+
+        # Close X Button with SVG icon
+        self._close_btn = QPushButton()
+        self._close_btn.setIcon(_svg_icon("close", C.TEXT_DIM, 12))
+        self._close_btn.setIconSize(QSize(12, 12))
+        self._close_btn.setFixedSize(24, 24)
+        self._close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._close_btn.setToolTip("Close Settings [ESC]")
+        self._close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent; color: {C.TEXT_DIM};
+                border: 1px solid {C.BORDER}; border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                color: {C.PRI}; border-color: {C.PRI}; background: {C.PRI_GHO};
+            }}
+        """)
+        self._close_btn.clicked.connect(self.close_modal)
+        hdr.addWidget(self._close_btn)
+
+        card_layout.addLayout(hdr)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet(f"color: {C.BORDER}; margin: 2px 0;")
+        card_layout.addWidget(sep)
+
+        # ── Scrollable Body ───────────────────────────────────────────────────
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet(f"""
+            QScrollArea {{ background: transparent; border: none; }}
+            QScrollBar:vertical {{
+                background: {C.DARK}; width: 6px; margin: 0; border-radius: 3px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {C.BORDER_B}; min-height: 24px; border-radius: 3px;
+            }}
+            QScrollBar::handle:vertical:hover {{ background: {C.PRI_DIM}; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+        """)
+
+        inner = QWidget()
+        inner.setStyleSheet("background: transparent;")
+        lay = QVBoxLayout(inner)
+        lay.setContentsMargins(4, 4, 10, 8)
+        lay.setSpacing(12)
+
+        _BTN_STYLE_PRI = f"""
+            QPushButton {{
+                background: #00091a; color: {C.PRI};
+                border: 1px solid {C.PRI_DIM}; border-radius: 3px;
+                text-align: left; padding: 0 10px;
+            }}
+            QPushButton:hover {{ background: {C.PRI_GHO}; border-color: {C.PRI}; }}
+        """
+        _BTN_STYLE_DIM = f"""
+            QPushButton {{
+                background: transparent; color: {C.TEXT_MED};
+                border: 1px solid {C.BORDER}; border-radius: 3px;
+                text-align: left; padding: 0 10px;
+            }}
+            QPushButton:hover {{ color: {C.PRI}; border-color: {C.BORDER_B}; }}
+        """
+
+        def _sec_header(title: str):
+            lbl = QLabel(f"◈ {title}")
+            lbl.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+            lbl.setStyleSheet(f"color: {C.PRI_DIM}; background: transparent; "
+                              f"border-bottom: 1px solid {C.BORDER}; padding-bottom: 3px;")
+            return lbl
+
+        # ── SECTION 1: SYSTEM CONTROLS ───────────────────────────────────────
+        lay.addWidget(_sec_header("SYSTEM CONTROLS"))
+
+        remote_btn = QPushButton("  REMOTE CONTROL")
+        remote_btn.setIcon(_svg_icon("remote", C.PRI, 13))
+        remote_btn.setIconSize(QSize(13, 13))
+        remote_btn.setFixedHeight(30)
+        remote_btn.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
+        remote_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        remote_btn.setStyleSheet(_BTN_STYLE_PRI)
+        remote_btn.clicked.connect(main_win._open_remote)
+        lay.addWidget(remote_btn)
+
+        fs_btn = QPushButton("  FULLSCREEN  [F11]")
+        fs_btn.setIcon(_svg_icon("fullscreen", C.TEXT_DIM, 12))
+        fs_btn.setIconSize(QSize(12, 12))
+        fs_btn.setFixedHeight(28)
+        fs_btn.setFont(QFont("Courier New", 7))
+        fs_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        fs_btn.setStyleSheet(_BTN_STYLE_DIM)
+        fs_btn.clicked.connect(main_win._toggle_fullscreen)
+        lay.addWidget(fs_btn)
+
+        sc_btn = QPushButton("  CREATE DESKTOP SHORTCUT")
+        sc_btn.setIcon(_svg_icon("desktop_shortcut", C.TEXT_DIM, 12))
+        sc_btn.setIconSize(QSize(12, 12))
+        sc_btn.setFixedHeight(28)
+        sc_btn.setFont(QFont("Courier New", 7))
+        sc_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        sc_btn.setStyleSheet(_BTN_STYLE_DIM)
+        sc_btn.clicked.connect(main_win._create_desktop_shortcut)
+        lay.addWidget(sc_btn)
+
+        main_win._autostart_btn = QPushButton("  AUTO-START: OFF")
+        main_win._autostart_btn.setIcon(_svg_icon("autostart_off", C.TEXT_DIM, 12))
+        main_win._autostart_btn.setIconSize(QSize(12, 12))
+        main_win._autostart_btn.setFixedHeight(28)
+        main_win._autostart_btn.setFont(QFont("Courier New", 7))
+        main_win._autostart_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_win._autostart_btn.clicked.connect(main_win._toggle_autostart)
+        lay.addWidget(main_win._autostart_btn)
+
+        cust_btn = QPushButton("  CUSTOMISE ASSISTANT")
+        cust_btn.setIcon(_svg_icon("settings", C.TEXT_DIM, 12))
+        cust_btn.setIconSize(QSize(12, 12))
+        cust_btn.setFixedHeight(28)
+        cust_btn.setFont(QFont("Courier New", 7))
+        cust_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        cust_btn.setStyleSheet(_BTN_STYLE_DIM)
+        cust_btn.clicked.connect(main_win._open_customize)
+        lay.addWidget(cust_btn)
+
+        # ── SECTION 2: VOICE & AUDIO ─────────────────────────────────────────
+        lay.addWidget(_sec_header("VOICE & AUDIO"))
+
+        main_win._wake_btn = QPushButton()
+        main_win._wake_btn.setFixedHeight(28)
+        main_win._wake_btn.setFont(QFont("Courier New", 7))
+        main_win._wake_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_win._wake_btn.clicked.connect(main_win._toggle_wake_word)
+        _set_btn_icon(main_win._wake_btn, "mic", "  WAKE WORD", C.TEXT_DIM, 12)
+        main_win._wake_btn.setStyleSheet(_BTN_STYLE_DIM)
+        lay.addWidget(main_win._wake_btn)
+
+        main_win._wake_sleep_btn = QPushButton()
+        main_win._wake_sleep_btn.setFixedHeight(28)
+        main_win._wake_sleep_btn.setFont(QFont("Courier New", 7))
+        main_win._wake_sleep_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_win._wake_sleep_btn.clicked.connect(main_win._tap_wake_manual)
+        main_win._wake_sleep_btn.setStyleSheet(_BTN_STYLE_DIM)
+        main_win._wake_sleep_btn.hide()
+        lay.addWidget(main_win._wake_sleep_btn)
+
+        main_win._ptt_btn = QPushButton()
+        main_win._ptt_btn.setFixedHeight(28)
+        main_win._ptt_btn.setFont(QFont("Courier New", 7))
+        main_win._ptt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_win._ptt_btn.clicked.connect(main_win._toggle_ptt)
+        lay.addWidget(main_win._ptt_btn)
+        main_win._refresh_talk_btns()
+
+        main_win._brief_btn = QPushButton()
+        main_win._brief_btn.setFixedHeight(28)
+        main_win._brief_btn.setFont(QFont("Courier New", 7))
+        main_win._brief_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_win._brief_btn.clicked.connect(main_win._toggle_brief)
+        lay.addWidget(main_win._brief_btn)
+
+        audio_btn = QPushButton("  AUDIO DEVICES")
+        audio_btn.setIcon(_svg_icon("headphones", C.TEXT_DIM, 12))
+        audio_btn.setIconSize(QSize(12, 12))
+        audio_btn.setFixedHeight(28)
+        audio_btn.setFont(QFont("Courier New", 7))
+        audio_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        audio_btn.setStyleSheet(_BTN_STYLE_DIM)
+        audio_btn.clicked.connect(main_win._open_audio_devices)
+        lay.addWidget(audio_btn)
+
+        # ── SECTION 3: INTERFACE & AI CORE ───────────────────────────────────
+        lay.addWidget(_sec_header("INTERFACE & AI CORE"))
+
+        main_win._hud_btn = QPushButton()
+        main_win._hud_btn.setFixedHeight(28)
+        main_win._hud_btn.setFont(QFont("Courier New", 7))
+        main_win._hud_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_win._hud_btn.clicked.connect(main_win._toggle_hud_style)
+        lay.addWidget(main_win._hud_btn)
+        main_win._refresh_hud_btn()
+
+        mem_btn = QPushButton("  MEMORY")
+        mem_btn.setIcon(_svg_icon("memory", C.TEXT_DIM, 12))
+        mem_btn.setIconSize(QSize(12, 12))
+        mem_btn.setFixedHeight(28)
+        mem_btn.setFont(QFont("Courier New", 7))
+        mem_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        mem_btn.setStyleSheet(_BTN_STYLE_DIM)
+        mem_btn.clicked.connect(main_win._open_memory_panel)
+        lay.addWidget(mem_btn)
+
+        plugin_btn = QPushButton("  PLUGINS")
+        plugin_btn.setIcon(_svg_icon("plugin", C.TEXT_DIM, 12))
+        plugin_btn.setIconSize(QSize(12, 12))
+        plugin_btn.setFixedHeight(28)
+        plugin_btn.setFont(QFont("Courier New", 7))
+        plugin_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        plugin_btn.setStyleSheet(_BTN_STYLE_DIM)
+        plugin_btn.clicked.connect(main_win._open_plugin_manager)
+        lay.addWidget(plugin_btn)
+
+        settings_btn = QPushButton("  PLUGIN SETTINGS")
+        settings_btn.setIcon(_svg_icon("settings", C.TEXT_DIM, 12))
+        settings_btn.setIconSize(QSize(12, 12))
+        settings_btn.setFixedHeight(28)
+        settings_btn.setFont(QFont("Courier New", 7))
+        settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        settings_btn.setStyleSheet(_BTN_STYLE_DIM)
+        settings_btn.clicked.connect(main_win._open_plugin_settings)
+        lay.addWidget(settings_btn)
+
+        # ── SECTION 4: FUTURE EXPANSION SPACE ─────────────────────────────────
+        future_box = QWidget()
+        future_box.setStyleSheet(f"""
+            QWidget {{
+                background: {C.PANEL2};
+                border: 1px dashed {C.BORDER};
+                border-radius: 4px;
+            }}
+        """)
+        fb_lay = QVBoxLayout(future_box)
+        fb_lay.setContentsMargins(10, 8, 10, 8)
+        fb_lbl = QLabel("◈ ADDITIONAL MODULES — EXPANSION SLOT")
+        fb_lbl.setFont(QFont("Courier New", 7))
+        fb_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
+        fb_lay.addWidget(fb_lbl)
+        lay.addWidget(future_box)
+
+        lay.addStretch(1)
+
+        scroll.setWidget(inner)
+        card_layout.addWidget(scroll, stretch=1)
+
+    def open_modal(self):
+        self._main_win._refresh_wake_btns()
+        self.reposition()
+        self.show()
+        self.raise_()
+        self.setFocus()
+        if hasattr(self._main_win, '_drawer_btn'):
+            self._main_win._drawer_btn.setChecked(True)
+            self._main_win._drawer_btn.setIcon(_svg_icon("settings", C.PRI, 14))
+
+    def close_modal(self):
+        self.hide()
+        if hasattr(self._main_win, '_drawer_btn'):
+            self._main_win._drawer_btn.setChecked(False)
+            self._main_win._drawer_btn.setIcon(_svg_icon("settings", C.TEXT_DIM, 14))
+        p = self.parentWidget()
+        if p is not None:
+            p.update()
+
+    def reposition(self):
+        cw = self.parentWidget() or self._main_win.centralWidget()
+        if not cw:
+            return
+        pw, ph = cw.width(), cw.height()
+        self.setGeometry(0, 0, pw, ph)
+
+        card_w = min(620, max(440, int(pw * 0.65)))
+        card_h = min(620, max(380, int(ph * 0.82)))
+        card_x = max(10, (pw - card_w) // 2)
+        card_y = max(10, (ph - card_h) // 2)
+        self._card.setGeometry(card_x, card_y, card_w, card_h)
+
+    def mousePressEvent(self, event):
+        pos = event.position().toPoint()
+        if not self._card.geometry().contains(pos):
+            self.close_modal()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.close_modal()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+
 class MainWindow(QMainWindow):
     _log_sig        = pyqtSignal(str)
     _state_sig      = pyqtSignal(str)
@@ -2789,7 +3203,9 @@ class MainWindow(QMainWindow):
         _cam_title.setStyleSheet(f"color: {C.PRI}; background: transparent;")
         _cam_hdr.addWidget(_cam_title)
         _cam_hdr.addStretch()
-        _cam_x = QPushButton("✕  CLOSE")
+        _cam_x = QPushButton("  CLOSE")
+        _cam_x.setIcon(_svg_icon("close", C.TEXT_DIM, 12))
+        _cam_x.setIconSize(QSize(12, 12))
         _cam_x.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
         _cam_x.setCursor(Qt.CursorShape.PointingHandCursor)
         _cam_x.setStyleSheet(f"""
@@ -2839,8 +3255,8 @@ class MainWindow(QMainWindow):
         root.addLayout(body, stretch=1)
         root.addWidget(self._build_footer())
 
-        # Quick-access drawer (floating overlay, built after central widget layout is done)
-        self._quick_drawer = self._build_quick_drawer()
+        # Settings in-app modal overlay
+        self._settings_modal = SettingsModalOverlay(self)
         self._update_autostart_btn(self._check_autostart())
         from memory.config_manager import get_brief_enabled as _gbe
         self._update_brief_btn(_gbe())
@@ -3379,9 +3795,9 @@ class MainWindow(QMainWindow):
         # Clipboard panel — bottom-center
         if hasattr(self, '_clipboard_panel') and self._clipboard_panel.isVisible():
             self._position_clipboard_panel()
-        # Quick drawer — reposition if open
-        if hasattr(self, '_quick_drawer') and self._quick_drawer.isVisible():
-            self._position_quick_drawer()
+        # Settings modal overlay — reposition if open
+        if hasattr(self, '_settings_modal') and self._settings_modal.isVisible():
+            self._settings_modal.reposition()
 
     def _update_metrics(self):
         snap = _metrics.snapshot()
@@ -3449,9 +3865,10 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(_badge(APP_VERSION, C.PRI_DIM))
         lay.addSpacing(8)
-        self._drawer_btn = QPushButton("⚙")
+        self._drawer_btn = QPushButton()
+        self._drawer_btn.setIcon(_svg_icon("settings", C.TEXT_DIM, 14))
+        self._drawer_btn.setIconSize(QSize(14, 14))
         self._drawer_btn.setFixedSize(26, 26)
-        self._drawer_btn.setFont(QFont("Courier New", 11))
         self._drawer_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._drawer_btn.setToolTip("Settings & Controls")
         self._drawer_btn.setStyleSheet(f"""
@@ -3557,19 +3974,35 @@ class MainWindow(QMainWindow):
 
         lay.addStretch()
 
-        for txt, col in [
-            ("AI CORE\nACTIVE",  C.GREEN),
-            ("SEC\nCLEARED",     C.PRI),
-            ("PROTOCOL\n" + APP_PROTOCOL,   C.TEXT_DIM),
-        ]:
-            lbl = QLabel(txt)
-            lbl.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
-            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setStyleSheet(
-                f"color: {col}; background: {C.PANEL2};"
-                f"border: 1px solid {C.BORDER_A}; border-radius: 3px; padding: 4px;"
-            )
-            lay.addWidget(lbl)
+        self._interrupt_btn = QPushButton("  INTERRUPT  [ESC]")
+        self._interrupt_btn.setIcon(_svg_icon("interrupt", C.MUTED_C, 14))
+        self._interrupt_btn.setIconSize(QSize(14, 14))
+        self._interrupt_btn.setFixedHeight(32)
+        self._interrupt_btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._interrupt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._interrupt_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: #140008; color: {C.MUTED_C};
+                border: 1px solid {C.MUTED_C}; border-radius: 3px;
+                padding: 0 4px;
+            }}
+            QPushButton:hover {{
+                background: #200010; border: 1px solid #ff6688;
+            }}
+            QPushButton:pressed {{
+                background: #300018;
+            }}
+        """)
+        self._interrupt_btn.clicked.connect(self._do_interrupt)
+        lay.addWidget(self._interrupt_btn)
+
+        self._mute_btn = QPushButton()
+        self._mute_btn.setFixedHeight(30)
+        self._mute_btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._mute_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._mute_btn.clicked.connect(self._toggle_mute)
+        self._style_mute_btn()
+        lay.addWidget(self._mute_btn)
 
         return w
     def _build_right_panel(self) -> QWidget:
@@ -3597,210 +4030,14 @@ class MainWindow(QMainWindow):
         lay.addWidget(_sec("COMMAND INPUT"))
         lay.addLayout(self._build_input_row())
 
-        self._interrupt_btn = QPushButton("✋  INTERRUPT  [ESC]")
-        self._interrupt_btn.setFixedHeight(34)
-        self._interrupt_btn.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
-        self._interrupt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._interrupt_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: #140008; color: {C.MUTED_C};
-                border: 1px solid {C.MUTED_C}; border-radius: 3px;
-            }}
-            QPushButton:hover {{
-                background: #200010; border: 1px solid #ff6688;
-            }}
-            QPushButton:pressed {{
-                background: #300018;
-            }}
-        """)
-        self._interrupt_btn.clicked.connect(self._do_interrupt)
-        lay.addWidget(self._interrupt_btn)
-
-        self._mute_btn = QPushButton("🎙  MICROPHONE ACTIVE")
-        self._mute_btn.setFixedHeight(30)
-        self._mute_btn.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
-        self._mute_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._mute_btn.clicked.connect(self._toggle_mute)
-        self._style_mute_btn()
-        lay.addWidget(self._mute_btn)
-
         return w
 
-    def _build_quick_drawer(self) -> QWidget:
-        """Floating overlay panel shown when the ⚙ header button is toggled."""
-        _BTN_STYLE_PRI = f"""
-            QPushButton {{
-                background: #00091a; color: {C.PRI};
-                border: 1px solid {C.PRI_DIM}; border-radius: 3px;
-                text-align: left; padding: 0 8px;
-            }}
-            QPushButton:hover {{ background: {C.PRI_GHO}; border-color: {C.PRI}; }}
-        """
-        _BTN_STYLE_DIM = f"""
-            QPushButton {{
-                background: transparent; color: {C.TEXT_MED};
-                border: 1px solid {C.BORDER}; border-radius: 3px;
-                text-align: left; padding: 0 8px;
-            }}
-            QPushButton:hover {{ color: {C.PRI}; border-color: {C.BORDER_B}; }}
-        """
-
-        w = QWidget(self.centralWidget())
-        w.setObjectName("QuickDrawer")
-        w.setStyleSheet(f"""
-            QWidget#QuickDrawer {{
-                background: {C.DARK};
-                border: 1px solid {C.BORDER_B};
-                border-top: none;
-                border-radius: 0 0 6px 6px;
-            }}
-        """)
-        w.hide()
-
-        lay = QVBoxLayout(w)
-        lay.setContentsMargins(10, 8, 10, 10)
-        lay.setSpacing(5)
-
-        hdr = QLabel("◈ CONTROLS")
-        hdr.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
-        hdr.setStyleSheet(f"color: {C.PRI_DIM}; background: transparent; "
-                          f"border-bottom: 1px solid {C.BORDER}; padding-bottom: 4px;")
-        lay.addWidget(hdr)
-
-        remote_btn = QPushButton("◉  REMOTE CONTROL")
-        remote_btn.setFixedHeight(30)
-        remote_btn.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
-        remote_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        remote_btn.setStyleSheet(_BTN_STYLE_PRI)
-        remote_btn.clicked.connect(self._open_remote)
-        lay.addWidget(remote_btn)
-
-        fs_btn = QPushButton("⛶  FULLSCREEN  [F11]")
-        fs_btn.setFixedHeight(26)
-        fs_btn.setFont(QFont("Courier New", 7))
-        fs_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        fs_btn.setStyleSheet(_BTN_STYLE_DIM)
-        fs_btn.clicked.connect(self._toggle_fullscreen)
-        lay.addWidget(fs_btn)
-
-        sc_btn = QPushButton("⊞  CREATE DESKTOP SHORTCUT")
-        sc_btn.setFixedHeight(26)
-        sc_btn.setFont(QFont("Courier New", 7))
-        sc_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        sc_btn.setStyleSheet(_BTN_STYLE_DIM)
-        sc_btn.clicked.connect(self._create_desktop_shortcut)
-        lay.addWidget(sc_btn)
-
-        self._autostart_btn = QPushButton("◉  AUTO-START: OFF")
-        self._autostart_btn.setFixedHeight(26)
-        self._autostart_btn.setFont(QFont("Courier New", 7))
-        self._autostart_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._autostart_btn.clicked.connect(self._toggle_autostart)
-        lay.addWidget(self._autostart_btn)
-
-        cust_btn = QPushButton("⚙  CUSTOMISE ASSISTANT")
-        cust_btn.setFixedHeight(26)
-        cust_btn.setFont(QFont("Courier New", 7))
-        cust_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        cust_btn.setStyleSheet(_BTN_STYLE_DIM)
-        cust_btn.clicked.connect(self._open_customize)
-        lay.addWidget(cust_btn)
-
-        self._brief_btn = QPushButton()
-        self._brief_btn.setFixedHeight(26)
-        self._brief_btn.setFont(QFont("Courier New", 7))
-        self._brief_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._brief_btn.clicked.connect(self._toggle_brief)
-        lay.addWidget(self._brief_btn)
-
-        # ── Wake word ──────────────────────────────────────────────────────────
-        self._wake_btn = QPushButton()
-        self._wake_btn.setFixedHeight(26)
-        self._wake_btn.setFont(QFont("Courier New", 7))
-        self._wake_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._wake_btn.clicked.connect(self._toggle_wake_word)
-        lay.addWidget(self._wake_btn)
-
-        self._wake_sleep_btn = QPushButton()
-        self._wake_sleep_btn.setFixedHeight(26)
-        self._wake_sleep_btn.setFont(QFont("Courier New", 7))
-        self._wake_sleep_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._wake_sleep_btn.clicked.connect(self._tap_wake_manual)
-        lay.addWidget(self._wake_sleep_btn)
-        # Neutral placeholder now; the real state (which may load the model to
-        # check readiness) is resolved lazily the first time the drawer opens.
-        self._wake_btn.setText("🎙  WAKE WORD")
-        self._wake_btn.setStyleSheet(_BTN_STYLE_DIM)
-        self._wake_sleep_btn.hide()
-
-        self._ptt_btn = QPushButton()
-        self._ptt_btn.setFixedHeight(26)
-        self._ptt_btn.setFont(QFont("Courier New", 7))
-        self._ptt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._ptt_btn.clicked.connect(self._toggle_ptt)
-        lay.addWidget(self._ptt_btn)
-
-        self._refresh_talk_btns()
-
-        self._hud_btn = QPushButton()
-        self._hud_btn.setFixedHeight(26)
-        self._hud_btn.setFont(QFont("Courier New", 7))
-        self._hud_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._hud_btn.clicked.connect(self._toggle_hud_style)
-        lay.addWidget(self._hud_btn)
-        self._refresh_hud_btn()
-
-        audio_btn = QPushButton("🎧  AUDIO DEVICES")
-        audio_btn.setFixedHeight(26)
-        audio_btn.setFont(QFont("Courier New", 7))
-        audio_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        audio_btn.setStyleSheet(_BTN_STYLE_DIM)
-        audio_btn.clicked.connect(self._open_audio_devices)
-        lay.addWidget(audio_btn)
-
-        mem_btn = QPushButton("🧠  MEMORY")
-        mem_btn.setFixedHeight(26)
-        mem_btn.setFont(QFont("Courier New", 7))
-        mem_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        mem_btn.setStyleSheet(_BTN_STYLE_DIM)
-        mem_btn.clicked.connect(self._open_memory_panel)
-        lay.addWidget(mem_btn)
-
-        plugin_btn = QPushButton("🧩  PLUGINS")
-        plugin_btn.setFixedHeight(26)
-        plugin_btn.setFont(QFont("Courier New", 7))
-        plugin_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        plugin_btn.setStyleSheet(_BTN_STYLE_DIM)
-        plugin_btn.clicked.connect(self._open_plugin_manager)
-        lay.addWidget(plugin_btn)
-
-        settings_btn = QPushButton("⚙  PLUGIN SETTINGS")
-        settings_btn.setFixedHeight(26)
-        settings_btn.setFont(QFont("Courier New", 7))
-        settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        settings_btn.setStyleSheet(_BTN_STYLE_DIM)
-        settings_btn.clicked.connect(self._open_plugin_settings)
-        lay.addWidget(settings_btn)
-
-        w.adjustSize()
-        return w
-
-    def _toggle_drawer(self, checked: bool):
-        if checked:
-            self._refresh_wake_btns()   # resolve wake state on open (lazy)
-            self._position_quick_drawer()
-            self._quick_drawer.show()
-            self._quick_drawer.raise_()
-        else:
-            self._quick_drawer.hide()
-
-    def _position_quick_drawer(self):
-        if not hasattr(self, '_quick_drawer'):
-            return
-        _W = 220
-        self._quick_drawer.setFixedWidth(_W)
-        self._quick_drawer.adjustSize()
-        self._quick_drawer.setGeometry(12, 54, _W, self._quick_drawer.sizeHint().height())
+    def _toggle_drawer(self, checked: bool = False):
+        if hasattr(self, '_settings_modal'):
+            if not self._settings_modal.isVisible():
+                self._settings_modal.open_modal()
+            else:
+                self._settings_modal.close_modal()
 
     def _build_input_row(self) -> QHBoxLayout:
         row = QHBoxLayout(); row.setSpacing(5)
@@ -3818,9 +4055,10 @@ class MainWindow(QMainWindow):
         self._input.returnPressed.connect(self._send)
         row.addWidget(self._input)
 
-        send = QPushButton("▸")
+        send = QPushButton()
+        send.setIcon(_svg_icon("send", C.PRI, 13))
+        send.setIconSize(QSize(13, 13))
         send.setFixedSize(30, 30)
-        send.setFont(QFont("Courier New", 11, QFont.Weight.Bold))
         send.setCursor(Qt.CursorShape.PointingHandCursor)
         send.setStyleSheet(f"""
             QPushButton {{
@@ -3873,7 +4111,9 @@ class MainWindow(QMainWindow):
         self._content_ts_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
         hdr.addWidget(self._content_ts_lbl)
 
-        dismiss = QPushButton("DISMISS  ✕")
+        dismiss = QPushButton("  DISMISS")
+        dismiss.setIcon(_svg_icon("close", C.TEXT_DIM, 9))
+        dismiss.setIconSize(QSize(9, 9))
         dismiss.setFont(QFont("Courier New", 7))
         dismiss.setFixedHeight(18)
         dismiss.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -4085,7 +4325,9 @@ class MainWindow(QMainWindow):
         self._quiz_count_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
         hdr.addWidget(self._quiz_count_lbl)
 
-        quit_btn = QPushButton("DISMISS  ✕")
+        quit_btn = QPushButton("  DISMISS")
+        quit_btn.setIcon(_svg_icon("close", C.TEXT_DIM, 9))
+        quit_btn.setIconSize(QSize(9, 9))
         quit_btn.setFont(QFont("Courier New", 7))
         quit_btn.setFixedHeight(18)
         quit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -4309,7 +4551,7 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(_fl("[F4] Mute  ·  [F11] Fullscreen"))
         lay.addStretch()
-        lay.addWidget(_fl("By FatihMakes", C.PRI_DIM))
+        lay.addWidget(_fl("By SoreBlitz", C.PRI_DIM))
         return w
 
     def notify_phone_connected(self) -> None:
@@ -4443,7 +4685,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, '_autostart_btn'):
             return
         if enabled:
-            self._autostart_btn.setText("◉  AUTO-START: ON")
+            _set_btn_icon(self._autostart_btn, "autostart_on", "  AUTO-START: ON", C.GREEN, 12)
             self._autostart_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: #001a08; color: {C.GREEN};
@@ -4452,7 +4694,7 @@ class MainWindow(QMainWindow):
                 QPushButton:hover {{ background: #002010; }}
             """)
         else:
-            self._autostart_btn.setText("◉  AUTO-START: OFF")
+            _set_btn_icon(self._autostart_btn, "autostart_off", "  AUTO-START: OFF", C.TEXT_DIM, 12)
             self._autostart_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: transparent; color: {C.TEXT_DIM};
@@ -4507,17 +4749,20 @@ class MainWindow(QMainWindow):
             QPushButton:hover {{ color: {C.TEXT}; border: 1px solid {C.BORDER_B}; }}"""
         self._wake_btn.setEnabled(True)
         if not st["ready"]:
-            self._wake_btn.setText("⬇  WAKE WORD: DOWNLOAD")
+            _set_btn_icon(self._wake_btn, "download", "  WAKE WORD: DOWNLOAD", C.TEXT_DIM, 12)
             self._wake_btn.setStyleSheet(_off)
             self._wake_sleep_btn.hide()
         elif st["enabled"]:
-            self._wake_btn.setText("🎙  WAKE WORD: ON")
+            _set_btn_icon(self._wake_btn, "mic", "  WAKE WORD: ON", C.GREEN, 12)
             self._wake_btn.setStyleSheet(_on)
             self._wake_sleep_btn.show()
-            self._wake_sleep_btn.setText("😴  SLEEP NOW" if st["awake"] else "👂  WAKE NOW")
+            if st["awake"]:
+                _set_btn_icon(self._wake_sleep_btn, "sleep", "  SLEEP NOW", C.TEXT_DIM, 12)
+            else:
+                _set_btn_icon(self._wake_sleep_btn, "wake", "  WAKE NOW", C.TEXT_DIM, 12)
             self._wake_sleep_btn.setStyleSheet(_off)
         else:
-            self._wake_btn.setText("🎙  WAKE WORD: OFF")
+            _set_btn_icon(self._wake_btn, "mic", "  WAKE WORD: OFF", C.TEXT_DIM, 12)
             self._wake_btn.setStyleSheet(_off)
             self._wake_sleep_btn.hide()
 
@@ -4539,8 +4784,8 @@ class MainWindow(QMainWindow):
             QPushButton:hover {{ color: {C.TEXT}; border: 1px solid {C.BORDER_B}; }}"""
 
         ptt = get_push_to_talk_enabled()
-        self._ptt_btn.setText(f"🎚  PUSH-TO-TALK: {chord_label()}" if ptt
-                              else "🎚  PUSH-TO-TALK: OFF")
+        _ptt_txt = f"  PUSH-TO-TALK: {chord_label()}" if ptt else "  PUSH-TO-TALK: OFF"
+        _set_btn_icon(self._ptt_btn, "ptt", _ptt_txt, C.GREEN if ptt else C.TEXT_DIM, 12)
         self._ptt_btn.setStyleSheet(_on if ptt else _off)
         self._ptt_btn.setToolTip(
             "Microphone stays closed until you hold the key — nothing is sent "
@@ -4558,15 +4803,17 @@ class MainWindow(QMainWindow):
                 border: 1px solid {C.BORDER_A}; border-radius: 3px;
                 text-align: left; padding: 0 8px; }}
             QPushButton:hover {{ color: {C.WHITE}; border: 1px solid {C.BORDER_B}; }}"""
-        self._hud_btn.setText("🧑  HUD: ANIMATED FACE" if face
-                              else "◉  HUD: REACTOR CORE")
+        if face:
+            _set_btn_icon(self._hud_btn, "face", "  HUD: WIREFRAME FACE", C.PRI, 12)
+        else:
+            _set_btn_icon(self._hud_btn, "reactor", "  HUD: REACTOR CORE", C.PRI, 12)
         self._hud_btn.setStyleSheet(style)
         self._hud_btn.setToolTip(
-            "An animated head that speaks your words and shows what LUCY is "
+            "A holographic wireframe face that speaks your words and shows what LUCY is "
             "doing. Tap to switch to the reactor core."
             if face else
             "A reactor core that turns with the state and moves with your voice. "
-            "Tap to switch to the animated head.")
+            "Tap to switch to the wireframe face.")
 
     def _toggle_hud_style(self):
         """Swap the centrepiece. Both objects stay in memory, so the change is
@@ -4581,7 +4828,7 @@ class MainWindow(QMainWindow):
             pass
         self._refresh_hud_btn()
         self._log.append_log(
-            "SYS: HUD switched to the animated face." if want == "face"
+            "SYS: HUD switched to the wireframe face." if want == "face"
             else "SYS: HUD switched to the reactor core.")
 
     def _toggle_ptt(self):
@@ -4648,7 +4895,7 @@ class MainWindow(QMainWindow):
         st = self._wake_state()
         if not st["ready"]:
             # First time: download openwakeword + model in a worker thread.
-            self._wake_btn.setText("⬇  DOWNLOADING… (one-time)")
+            _set_btn_icon(self._wake_btn, "download", "  DOWNLOADING… (one-time)", C.ACC2, 12)
             self._wake_btn.setEnabled(False)
             def _work():
                 try:
@@ -4689,7 +4936,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, '_brief_btn'):
             return
         if enabled:
-            self._brief_btn.setText("☀  MORNING BRIEF: ON")
+            _set_btn_icon(self._brief_btn, "sun", "  MORNING BRIEF: ON", C.GREEN, 12)
             self._brief_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: #001a08; color: {C.GREEN};
@@ -4699,7 +4946,7 @@ class MainWindow(QMainWindow):
                 QPushButton:hover {{ background: #002010; }}
             """)
         else:
-            self._brief_btn.setText("☀  MORNING BRIEF: OFF")
+            _set_btn_icon(self._brief_btn, "sun", "  MORNING BRIEF: OFF", C.TEXT_DIM, 12)
             self._brief_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: transparent; color: {C.TEXT_DIM};
@@ -4905,6 +5152,9 @@ class MainWindow(QMainWindow):
     # ────────────────────────────────────────────────────────────────────────────
 
     def _do_interrupt(self):
+        if hasattr(self, '_settings_modal') and self._settings_modal.isVisible():
+            self._settings_modal.close_modal()
+            return
         if self.on_interrupt:
             self.on_interrupt()
 
@@ -4921,19 +5171,25 @@ class MainWindow(QMainWindow):
 
     def _style_mute_btn(self):
         if self._muted:
-            self._mute_btn.setText("🔇  MICROPHONE MUTED")
+            self._mute_btn.setText("  MICROPHONE MUTED")
+            self._mute_btn.setIcon(_svg_icon("mic_off", C.MUTED_C, 14))
+            self._mute_btn.setIconSize(QSize(14, 14))
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: #140006; color: {C.MUTED_C};
                     border: 1px solid {C.MUTED_C}; border-radius: 3px;
+                    padding: 0 4px;
                 }}
             """)
         else:
-            self._mute_btn.setText("🎙  MICROPHONE ACTIVE")
+            self._mute_btn.setText("  MICROPHONE ACTIVE")
+            self._mute_btn.setIcon(_svg_icon("mic", C.GREEN, 14))
+            self._mute_btn.setIconSize(QSize(14, 14))
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: #00140a; color: {C.GREEN};
                     border: 1px solid {C.GREEN}; border-radius: 3px;
+                    padding: 0 4px;
                 }}
                 QPushButton:hover {{ background: #001f10; }}
             """)
@@ -5014,7 +5270,7 @@ class JarvisUI:
             self._app.setWindowIcon(QIcon(str(_ico)))
         self._win = MainWindow(face_path)
         self.root = _RootShim(self._app)
-        self._win.show()
+        self._win.showMaximized()
 
     @property
     def muted(self) -> bool:

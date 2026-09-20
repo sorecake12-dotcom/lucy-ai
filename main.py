@@ -83,6 +83,7 @@ from core.viseme               import VisemeStream
 from core.wake_word            import (
     WakeWordDetector, is_ready as wake_is_ready, install_and_download as wake_install,
 )
+from actions.creator_info      import is_creator_query, get_creator_response
 
 # How long the assistant stays awake with no user speech before it auto-sleeps
 # again (wake-word mode only).
@@ -293,6 +294,9 @@ def _load_system_prompt() -> str:
     except Exception:
         return (
             "You are LUCY, a helpful, intelligent desktop AI assistant. "
+            "You were developed and created by Soreblitz. When asked who made, created, "
+            "developed, or built you, always state clearly and naturally that you were developed by Soreblitz. "
+            "Do not claim Soreblitz created third-party models like Gemini or OpenAI. "
             "Be concise, direct, and always use the provided tools to complete tasks. "
             "Never simulate or guess results — always call the appropriate tool."
         )
@@ -430,7 +434,7 @@ TOOL_DECLARATIONS = [
                     )
                 },
                 "key":   {"type": "STRING", "description": "Short snake_case key (e.g. name, favorite_food, sister_name)"},
-                "value": {"type": "STRING", "description": "Concise value in English (e.g. Fatih, pizza, older sister)"},
+                "value": {"type": "STRING", "description": "Concise value in English (e.g. SoreBlitz, pizza, older sister)"},
             },
             "required": ["category", "key", "value"]
         }
@@ -830,6 +834,12 @@ class JarvisLive:
 
     def _on_text_command(self, text: str):
         if not self._loop or not self.session:
+            if is_creator_query(text):
+                resp = get_creator_response(self._asst_name)
+                self.ui.write_log(f"You: {text}")
+                self.ui.write_log(f"{self._asst_name}: {resp}")
+                self._session_log.append(f"User: {text}")
+                self._session_log.append(f"{self._asst_name}: {resp}")
             return
         # Respect wake-word sleep: a typed command must not be answered while
         # asleep either (the sleep gate is not just for the mic). Wake first with
@@ -837,9 +847,19 @@ class JarvisLive:
         if self._wake_enabled and not self._awake:
             self.ui.write_log("SYS: I'm asleep — say 'Hey Jarvis' or tap WAKE NOW first.")
             return
+
+        turn_text = text
+        if is_creator_query(text):
+            turn_text = (
+                f"{text}\n\n"
+                f"[SYSTEM DIRECTIVE: The user is asking who created/developed you. "
+                f"State clearly and naturally that you were developed by Soreblitz. "
+                f"Do not claim Soreblitz created Gemini, OpenAI, or underlying AI models.]"
+            )
+
         asyncio.run_coroutine_threadsafe(
             self.session.send_client_content(
-                turns={"role": "user", "parts": [{"text": text}]},
+                turns={"role": "user", "parts": [{"text": turn_text}]},
                 turn_complete=True
             ),
             self._loop
@@ -989,6 +1009,12 @@ class JarvisLive:
             f"[IDENTITY]\n"
             f"Your name is {self._asst_name}. "
             f"Always refer to yourself as {self._asst_name}.\n"
+            f"CREATOR & DEVELOPER: You were created and developed by Soreblitz. "
+            f"Soreblitz built and developed this {self._asst_name} assistant application. "
+            f"Whenever asked who made, created, developed, or built you, who is your creator, "
+            f"or who is behind you, answer clearly and naturally that you were developed by Soreblitz "
+            f"(e.g., 'I was developed by Soreblitz.', 'Soreblitz developed me.', or 'I was created by Soreblitz.'). "
+            f"Do not claim Soreblitz created underlying third-party AI models such as Gemini or OpenAI.\n"
             f"{_addr}\n\n"
         )
 
@@ -1601,17 +1627,37 @@ class JarvisLive:
             st.start()
             return st
 
+        stream = None
+        candidates = [_spk_dev] if _spk_dev is not None else []
+        if None not in candidates:
+            candidates.append(None)
         try:
-            stream = _open_spk(_spk_dev)
-        except Exception as _e:
-            # A chosen output that the host API accepts by name but refuses to
-            # open (exclusive mode, wrong sample rate, device asleep) must not
-            # cost the user their voice. Fall back to the default and say so.
-            if _spk_dev is None:
-                raise
-            print(f"[JARVIS] ⚠️  Output device '{_spk_name}' failed: {_e} — using default")
-            self.ui.write_log(f"SYS: Speaker '{_spk_name}' unavailable — using system default.")
-            stream = _open_spk(None)
+            for idx, d in enumerate(sd.query_devices()):
+                if d.get("max_output_channels", 0) > 0 and idx not in candidates:
+                    candidates.append(idx)
+        except Exception:
+            pass
+
+        for c_dev in candidates:
+            try:
+                stream = _open_spk(c_dev)
+                if c_dev != _spk_dev and _spk_dev is not None:
+                    print(f"[JARVIS] ⚠️  Output device '{_spk_name}' unavailable — using audio device {c_dev}")
+                    self.ui.write_log(f"SYS: Speaker '{_spk_name}' unavailable — fell back to device {c_dev}.")
+                break
+            except Exception:
+                continue
+
+        if stream is None:
+            print("[JARVIS] ⚠️  No physical audio output device could be opened — falling back to silent stream.")
+            self.ui.write_log("SYS: Audio output device unavailable — running in silent output mode.")
+            class _DummyAudioStream:
+                latency = 0.05
+                def write(self, data):
+                    time.sleep(len(data) / (RECEIVE_SAMPLE_RATE * 2))
+                def stop(self): pass
+                def close(self): pass
+            stream = _DummyAudioStream()
 
         # Ask the device how far behind the speakers actually are, rather than
         # assuming. This is what the echo tail is sized from, so a machine with a
@@ -2024,13 +2070,34 @@ class JarvisLive:
                     # has no desktop WAKE button — so it wakes JARVIS if asleep.
                     if self._wake_enabled and not self._awake:
                         self.wake(reason="remote command")
+                    turn_text = text
+                    if is_creator_query(text):
+                        turn_text = (
+                            f"{text}\n\n"
+                            f"[SYSTEM DIRECTIVE: The user is asking who created/developed you. "
+                            f"State clearly and naturally that you were developed by Soreblitz. "
+                            f"Do not claim Soreblitz created Gemini, OpenAI, or underlying AI models.]"
+                        )
                     await self.session.send_client_content(
-                        turns={"role": "user", "parts": [{"text": text}]},
+                        turns={"role": "user", "parts": [{"text": turn_text}]},
                         turn_complete=True,
                     )
                     self.ui.write_log(f"[Web]: {text}")
                 else:
-                    print(f"[Dashboard] Dropped command (no session): {text}")
+                    if is_creator_query(text):
+                        resp = get_creator_response(self._asst_name)
+                        self.ui.write_log(f"[Web]: {text}")
+                        self.ui.write_log(f"{self._asst_name}: {resp}")
+                        self._session_log.append(f"User: {text}")
+                        self._session_log.append(f"{self._asst_name}: {resp}")
+                        if self._dashboard:
+                            asyncio.create_task(self._dashboard.broadcast({
+                                "type": "log", "speaker": "jarvis",
+                                "text": resp,
+                                "ts": datetime.now().isoformat(),
+                            }))
+                    else:
+                        print(f"[Dashboard] Dropped command (no session): {text}")
             except asyncio.TimeoutError:
                 pass
             except Exception as e:

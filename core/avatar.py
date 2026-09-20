@@ -27,10 +27,13 @@ from __future__ import annotations
 
 import math
 import random
+from pathlib import Path
 
 import numpy as np
 from PyQt6.QtCore import QLineF, QPointF, QRectF, Qt
-from PyQt6.QtGui import QBrush, QColor, QPainter, QPen, QPolygonF, QRadialGradient
+from PyQt6.QtGui import (
+    QBrush, QColor, QImage, QPainter, QPen, QPixmap, QPolygonF, QRadialGradient
+)
 
 from core.avatar_mesh import JAW_MAX, JAW_PIVOT, get_head_mesh
 
@@ -124,7 +127,24 @@ class HoloAvatar:
     # see-through glass wireframe. Flip here, or per instance.
     shaded = True
 
+    # Mode 2 Avatar Visual: When True, renders the new wireframe avatar asset (lucy_face_wireframe.png).
+    # If False, instantly restores the original 3D MediaPipe head mesh renderer.
+    USE_WIREFRAME_ASSET: bool = True
+
     def __init__(self) -> None:
+        # Wireframe avatar image asset cache (Mode 2)
+        self._wireframe_pm: QPixmap | None = None
+        self._scaled_pm_cache: QPixmap | None = None
+        self._scaled_size_cache: tuple[int, int] = (0, 0)
+        self._aspect_ratio: float = 683.0 / 1024.0
+        self._scan_phase: float = 0.0
+        self._speaking: bool = False
+        self._muted: bool = False
+        self._state: str = "INITIALISING"
+
+        if self.USE_WIREFRAME_ASSET:
+            self._load_wireframe()
+
         mesh = get_head_mesh()
         self._v0 = mesh["verts"]
         self._n0 = mesh["normals"]
@@ -265,6 +285,11 @@ class HoloAvatar:
         t = self._t
         amp = max(0.0, min(1.0, float(amp)))
         live = speaking and not muted
+
+        self._speaking = bool(speaking)
+        self._muted = bool(muted)
+        self._state = str(state or "")
+        self._scan_phase = (self._scan_phase + dt * 0.35) % 1.0
 
         # Idle sway. The phase is *integrated* rather than taken as
         # sin(t * rate * speed): multiplying absolute time by a speed that
@@ -477,6 +502,119 @@ class HoloAvatar:
             self._lut_key = key
         return self._lut_cache
 
+    def _load_wireframe(self) -> bool:
+        """Load and cache the wireframe avatar image with transparent alpha background."""
+        if self._wireframe_pm is not None and not self._wireframe_pm.isNull():
+            return True
+
+        asset_path = Path(__file__).resolve().parent / "lucy_face_wireframe.png"
+        if not asset_path.exists():
+            fallback = Path(r"C:\Users\ACER\Downloads\lucy_face_wireframe.png")
+            if fallback.exists():
+                asset_path = fallback
+            else:
+                return False
+
+        try:
+            from PIL import Image
+            im = Image.open(str(asset_path))
+            arr = np.array(im)
+
+            if arr.ndim == 3 and arr.shape[2] == 4:
+                rgba = arr
+            elif arr.ndim == 3 and arr.shape[2] >= 3:
+                r = arr[:, :, 0].astype(np.float32)
+                g = arr[:, :, 1].astype(np.float32)
+                b = arr[:, :, 2].astype(np.float32)
+                # Compute chroma: saturated wireframe has high cyan (b & g) vs red (r),
+                # while neutral gray background has r ≈ g ≈ b (chroma ≈ 0)
+                chroma = np.maximum(b, g) - r
+                alpha = np.clip(chroma * 2.2, 0, 255).astype(np.uint8)
+                rgba = np.dstack([arr[:, :, 0], arr[:, :, 1], arr[:, :, 2], alpha])
+            else:
+                self._wireframe_pm = QPixmap(str(asset_path))
+                if not self._wireframe_pm.isNull():
+                    self._aspect_ratio = self._wireframe_pm.width() / max(1, self._wireframe_pm.height())
+                    return True
+                return False
+
+            h, w, _ = rgba.shape
+            qimg = QImage(rgba.data, w, h, w * 4, QImage.Format.Format_RGBA8888)
+            self._wireframe_pm = QPixmap.fromImage(qimg)
+            self._aspect_ratio = float(w) / float(h)
+            return not self._wireframe_pm.isNull()
+        except Exception:
+            try:
+                self._wireframe_pm = QPixmap(str(asset_path))
+                if not self._wireframe_pm.isNull():
+                    self._aspect_ratio = self._wireframe_pm.width() / max(1, self._wireframe_pm.height())
+                    return True
+            except Exception:
+                pass
+            return False
+
+    def _paint_wireframe_asset(self, p: QPainter, cx: float, cy: float, r: float,
+                               primary: QColor, accent: QColor, bg: QColor, amp: float) -> None:
+        """Render the holographic wireframe avatar from the loaded asset."""
+        if self._wireframe_pm is None or self._wireframe_pm.isNull():
+            return
+
+        # 1. State aura / glow behind the wireframe head
+        aura_col = accent if (self._speaking or amp > 0.04) else primary
+        if self._muted:
+            aura_col = primary
+
+        ar = r * 1.55
+        grad = QRadialGradient(cx, cy, ar)
+        base_a = 40 + int(70 * amp) if not self._muted else 20
+        grad.setColorAt(0.00, _c(aura_col, base_a))
+        grad.setColorAt(0.35, _c(aura_col, int(base_a * 0.55)))
+        grad.setColorAt(0.70, _c(primary, int(base_a * 0.18)))
+        grad.setColorAt(1.00, _c(primary, 0))
+
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(grad))
+        p.drawEllipse(QRectF(cx - ar, cy - ar, ar * 2.0, ar * 2.0))
+
+        # 2. Scale & positioning (organic breathing pulse + audio level)
+        breath = 1.0 + 0.014 * math.sin(self._sway * 1.5)
+        voice_lift = amp * 0.07 if (self._speaking or not self._muted) else 0.0
+        scale = breath + voice_lift
+
+        target_h = r * 2.15 * scale
+        target_w = target_h * self._aspect_ratio
+
+        # Micro-gaze & sway
+        gx = self._gaze[0] * r * 0.04 + math.sin(self._sway * 0.7) * 2.0
+        gy = self._gaze[1] * r * 0.04 + math.cos(self._sway * 0.5) * 1.5
+
+        # 3. Scaled pixmap with caching for 60 FPS performance
+        iw, ih = int(round(target_w)), int(round(target_h))
+        if (self._scaled_pm_cache is None or
+            abs(self._scaled_size_cache[0] - iw) > 2 or
+            abs(self._scaled_size_cache[1] - ih) > 2):
+            self._scaled_pm_cache = self._wireframe_pm.scaled(
+                iw, ih,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self._scaled_size_cache = (iw, ih)
+
+        pm_to_draw = self._scaled_pm_cache
+        if pm_to_draw is not None and not pm_to_draw.isNull():
+            px = cx - pm_to_draw.width() / 2.0 + gx
+            py = cy - pm_to_draw.height() / 2.0 + gy
+            p.drawPixmap(int(round(px)), int(round(py)), pm_to_draw)
+
+            # 4. Subtle holographic horizontal scanline
+            scan_rel = self._scan_phase % 1.0
+            scan_y = py + scan_rel * pm_to_draw.height()
+            scan_w = pm_to_draw.width() * 0.85
+            scan_x = cx - scan_w / 2.0 + gx
+
+            p.setPen(QPen(_c(aura_col, int(50 + 60 * amp)), 1.2))
+            p.drawLine(QLineF(scan_x, scan_y, scan_x + scan_w, scan_y))
+
     def paint(self, p: QPainter, cx: float, cy: float, r: float,
               primary: QColor, accent: QColor, bg: QColor | None = None) -> None:
         """Draw the avatar with its head centre at (cx, cy).
@@ -487,6 +625,12 @@ class HoloAvatar:
         if bg is None:
             bg = QColor(0, 0, 0)
         amp = self._glow
+
+        # Mode 2: If wireframe asset rendering is enabled, render the new wireframe avatar
+        if self.USE_WIREFRAME_ASSET and self._load_wireframe():
+            self._paint_wireframe_asset(p, cx, cy, r, primary, accent, bg, amp)
+            return
+
         verts, norms = self._pose()
 
         # ── aura ────────────────────────────────────────────────────────────
