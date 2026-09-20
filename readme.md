@@ -70,7 +70,9 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
   * **ASSISTANT**: Professional, concise, direct, and task-oriented with zero fluff and no unnecessary confirmation questions.
 * **Name & Addressing**: Configurable assistant name and user title.
 * **Live HUD Theming**: Dynamic theme color picker supporting full UI recoloring and custom hex values.
-* **HUD Styles**: Switch between a holographic wireframe face (with phonetic lip-sync and eye saccades) and an Arc Reactor core.
+* **Holographic Wireframe Face & HUD Modes**: Switch between the futuristic Wireframe Face and the Arc Reactor Core centerpiece:
+  * **Real-Time Lip-Sync**: Anatomically synchronized mouth movement reacting to actual TTS playback audio and visemes; lips part naturally, revealing subtle holographic oral depth, and smoothly return to neutral closed lips when silent or interrupted.
+  * **Natural Eye Dynamics**: Living green eyes with organic randomized blinking, subtle micro-saccades, and state-driven gaze shifts (focused gaze when listening, thoughtful look-away when thinking).
 * **Audio Device Selector**: In-app selection of preferred microphone and output speaker hardware.
 
 ### System & Desktop Integration
