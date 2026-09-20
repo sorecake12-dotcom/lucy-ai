@@ -60,9 +60,13 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
 * **Global Hotkeys**: Quick-stop interruption, push-to-talk, and full-screen HUD toggle.
 
 ### Settings & Customization
+* **Personality Modes**: Select between three distinct real-time personality modes (`GF`, `JARVIS`, and `ASSISTANT`):
+  * **GF**: Friendly, warm, playful, and slightly teasing girlfriend-style companion AI that can joke and banter while strictly executing all requested tasks without refusal.
+  * **JARVIS**: Classic LUCY operator persona — level-headed, authoritative, dry humor, and grounded in concrete facts.
+  * **ASSISTANT**: Professional, concise, direct, and task-oriented with zero fluff and no unnecessary confirmation questions.
 * **Name & Addressing**: Configurable assistant name and user title.
 * **Live HUD Theming**: Dynamic theme color picker supporting full UI recoloring and custom hex values.
-* **HUD Styles**: Switch between a 3D animated holographic face (with phonetic lip-sync and eye saccades) and an Arc Reactor core.
+* **HUD Styles**: Switch between a holographic wireframe face (with phonetic lip-sync and eye saccades) and an Arc Reactor core.
 * **Audio Device Selector**: In-app selection of preferred microphone and output speaker hardware.
 
 ### System & Desktop Integration
@@ -110,6 +114,7 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
 * **`main.py`**: Application entrypoint and `JarvisLive` orchestration loop managing WebSocket connections, audio pipelines, tool dispatch, and event handling.
 * **`ui.py`**: PyQt6 GUI implementation featuring the holographic avatar canvas, audio visualizers, settings overlays, logs, and system trays.
 * **`core/`**: Fundamental engine utilities:
+  * `personality.py`: Multi-personality system engine and dynamic prompt injectors for GF, JARVIS, and ASSISTANT modes.
   * `avatar.py`: Software-rendered 3D holographic head, phonetic viseme mapping, and lip-sync.
   * `llm_client.py`: Gemini Live API client with continuous streaming and context compression.
   * `wake_word.py`: Local openWakeWord detection thread.

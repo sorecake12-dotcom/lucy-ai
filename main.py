@@ -72,7 +72,9 @@ from memory.config_manager     import (
     get_brief_enabled, get_media_resolution, get_proactive_audio_enabled,
     get_push_to_talk_enabled, get_thinking_enabled, get_turn_tuning, get_voice,
     get_wake_word_enabled, save_wake_word_enabled,    get_input_device, get_output_device,
+    get_personality_mode,
 )
+from core.personality          import get_personality_prompt
 from core.plugin_loader        import discover_plugins
 from core                      import undo as undo_stack
 from core                      import confirm as confirm_gate
@@ -576,6 +578,7 @@ class JarvisLive:
         self.ui.on_remote_clicked = self._make_remote_key
         self.ui.on_interrupt      = self.interrupt
         self.ui.on_voice_change   = self._on_voice_change     # voice picker → rebuild session
+        self.ui.on_personality_change = self._on_personality_change # personality selector → rebuild session
         self.ui.on_audio_device_change = self._on_audio_device_change
         self._reconnect_event: asyncio.Event | None = None
         self._reconnect_keep = True   # False → next rebuild drops the resumption handle
@@ -797,6 +800,11 @@ class JarvisLive:
         appear to do nothing. Losing context here is acceptable because changing
         voice is a deliberate, rare act; losing it on a dropped packet was not."""
         self.request_reconnect(keep_context=False, reason="new voice")
+
+    def _on_personality_change(self, mode: str):
+        """Personality selector applied. Rebuild session without resumption so
+        the new personality system instruction is applied immediately."""
+        self.request_reconnect(keep_context=False, reason=f"personality: {mode}")
 
     def _on_audio_device_change(self):
         """Microphone or speaker changed. Both streams are opened inside the
@@ -1042,6 +1050,12 @@ class JarvisLive:
         if mem_str:
             parts.append(mem_str)
         parts.append(sys_prompt)
+
+        p_mode = get_personality_mode()
+        p_prompt = get_personality_prompt(p_mode)
+        if p_prompt:
+            parts.append(p_prompt)
+        print(f"[JARVIS] Configured personality: {p_mode}")
 
         cfg = dict(
             response_modalities=["AUDIO"],
@@ -2156,6 +2170,8 @@ class JarvisLive:
                     api_key=_get_api_key(),
                     http_options={"api_version": "v1alpha" if self._enhanced_live else "v1beta"}
                 )
+                if hasattr(client, "_api_client") and hasattr(client._api_client, "_websocket_ssl_ctx"):
+                    client._api_client._websocket_ssl_ctx["open_timeout"] = 30.0
 
                 async with (
                     client.aio.live.connect(model=LIVE_MODEL, config=config) as session,

@@ -361,7 +361,10 @@ class _SysMetrics:
         if self._pynvml_ok is not False:
             try:
                 if self._pynvml_h is None:
-                    import pynvml  # type: ignore
+                    import warnings
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=FutureWarning)
+                        import pynvml  # type: ignore
                     pynvml.nvmlInit()
                     self._pynvml    = pynvml
                     self._pynvml_h  = pynvml.nvmlDeviceGetHandleByIndex(0)
@@ -3036,7 +3039,37 @@ class SettingsModalOverlay(QWidget):
         settings_btn.clicked.connect(main_win._open_plugin_settings)
         lay.addWidget(settings_btn)
 
-        # ── SECTION 4: FUTURE EXPANSION SPACE ─────────────────────────────────
+        # ── SECTION 4: PERSONALITY ───────────────────────────────────────────
+        lay.addWidget(_sec_header("PERSONALITY"))
+
+        main_win._personality_btns = {}
+        for mode, subtitle in [
+            ("GF", "Friendly / playful"),
+            ("JARVIS", "Classic LUCY personality"),
+            ("ASSISTANT", "Task-focused"),
+        ]:
+            p_box = QWidget()
+            p_box.setStyleSheet("background: transparent;")
+            p_lay = QVBoxLayout(p_box)
+            p_lay.setContentsMargins(0, 0, 0, 4)
+            p_lay.setSpacing(2)
+
+            btn = QPushButton(f"  {mode}")
+            btn.setFixedHeight(28)
+            btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda checked=False, m=mode: main_win._set_personality(m))
+            p_lay.addWidget(btn)
+
+            sub = QLabel(f"    {subtitle}")
+            sub.setFont(QFont("Courier New", 6))
+            sub.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
+            p_lay.addWidget(sub)
+
+            lay.addWidget(p_box)
+            main_win._personality_btns[mode] = btn
+
+        # ── SECTION 5: FUTURE EXPANSION SPACE ─────────────────────────────────
         future_box = QWidget()
         future_box.setStyleSheet(f"""
             QWidget {{
@@ -3060,6 +3093,7 @@ class SettingsModalOverlay(QWidget):
 
     def open_modal(self):
         self._main_win._refresh_wake_btns()
+        self._main_win._refresh_personality_btns()
         self.reposition()
         self.show()
         self.raise_()
@@ -3155,6 +3189,7 @@ class MainWindow(QMainWindow):
         self.on_remote_clicked = None   # callable: () -> (url, key) | None
         self.on_interrupt      = None   # callable: () -> None — stop JARVIS mid-speech
         self.on_voice_change   = None   # callable: () -> None — rebuild session with new voice
+        self.on_personality_change = None  # callable: (mode: str) -> None — rebuild session with new personality
         self.on_audio_device_change = None  # callable: () -> None — reopen audio streams
         self._confirm_overlay  = None   # live ConfirmBanner, if one is on screen
         self.get_plugins       = None   # callable: () -> list[dict], set by JarvisLive
@@ -4831,6 +4866,49 @@ class MainWindow(QMainWindow):
             "SYS: HUD switched to the wireframe face." if want == "face"
             else "SYS: HUD switched to the reactor core.")
 
+    def _refresh_personality_btns(self):
+        from memory.config_manager import get_personality_mode
+        active = get_personality_mode()
+        _BTN_STYLE_PRI = f"""
+            QPushButton {{
+                background: #00091a; color: {C.PRI};
+                border: 1px solid {C.PRI_DIM}; border-radius: 3px;
+                text-align: left; padding: 0 10px;
+            }}
+            QPushButton:hover {{ background: {C.PRI_GHO}; border-color: {C.PRI}; }}
+        """
+        _BTN_STYLE_DIM = f"""
+            QPushButton {{
+                background: transparent; color: {C.TEXT_MED};
+                border: 1px solid {C.BORDER}; border-radius: 3px;
+                text-align: left; padding: 0 10px;
+            }}
+            QPushButton:hover {{ color: {C.PRI}; border-color: {C.BORDER_B}; }}
+        """
+        for mode, btn in getattr(self, "_personality_btns", {}).items():
+            if mode == active:
+                btn.setStyleSheet(_BTN_STYLE_PRI)
+                _set_btn_icon(btn, "check", f"  {mode}", C.PRI, 12)
+                btn.setToolTip(f"Personality mode: {mode} (Active)")
+            else:
+                btn.setStyleSheet(_BTN_STYLE_DIM)
+                _set_btn_icon(btn, "arrow_right", f"  {mode}", C.TEXT_DIM, 12)
+                btn.setToolTip(f"Switch to {mode} personality mode")
+
+    def _set_personality(self, mode: str):
+        from memory.config_manager import save_personality_mode, get_personality_mode
+        current = get_personality_mode()
+        if mode == current:
+            return
+        save_personality_mode(mode)
+        self._refresh_personality_btns()
+        self._log.append_log(f"SYS: Personality mode set to {mode}.")
+        if callable(getattr(self, "on_personality_change", None)):
+            try:
+                self.on_personality_change(mode)
+            except Exception as e:
+                print(f"[Personality] Error calling on_personality_change: {e}")
+
     def _toggle_ptt(self):
         from memory.config_manager import (get_push_to_talk_enabled,
                                            save_push_to_talk_enabled)
@@ -5312,6 +5390,14 @@ class JarvisUI:
     @on_voice_change.setter
     def on_voice_change(self, cb):
         self._win.on_voice_change = cb
+
+    @property
+    def on_personality_change(self):
+        return self._win.on_personality_change
+
+    @on_personality_change.setter
+    def on_personality_change(self, cb):
+        self._win.on_personality_change = cb
 
     @property
     def on_audio_device_change(self):

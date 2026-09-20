@@ -382,3 +382,18 @@ def save_plugin_enabled(plugin_name: str, enabled: bool) -> None:
     plugins_cfg[plugin_name] = enabled
     data["plugins_enabled"] = plugins_cfg
     CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")
+
+
+# ── Personality mode (GF / JARVIS / ASSISTANT) ──────────────────────────────
+def get_personality_mode() -> str:
+    """Return configured personality mode ('GF', 'JARVIS', or 'ASSISTANT'), defaulting to 'JARVIS'."""
+    from core.personality import normalize_mode, DEFAULT_PERSONALITY
+    raw = load_api_keys().get("personality_mode", DEFAULT_PERSONALITY)
+    return normalize_mode(raw)
+
+
+def save_personality_mode(mode: str) -> None:
+    """Persist the selected personality mode to config."""
+    from core.personality import normalize_mode
+    clean_mode = normalize_mode(mode)
+    _patch_config(personality_mode=clean_mode)
