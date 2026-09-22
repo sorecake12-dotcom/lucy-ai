@@ -98,6 +98,7 @@ def copy_app_files():
         "config",
         "core",
         "dashboard",
+        "launcher",
         "memory",
         "plugins"
     ]
@@ -124,12 +125,15 @@ def copy_app_files():
                 data = json.load(f)
         except Exception:
             data = {}
-        # Clear secret key
+        # Clear secret key and user details
         data["gemini_api_key"] = ""
+        data["user_name"] = "User"
+        data["input_device"] = ""
+        data["output_device"] = ""
         # Write sanitized config
         with open(api_config_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
-        print("  ✓ Sanitized config/api_keys.json (cleared gemini_api_key)")
+        print("  ✓ Sanitized config/api_keys.json (cleared keys and personal info)")
         
     # Sanitize memory/long_term.json
     mem_file = LUCY_DIR / "memory" / "long_term.json"
@@ -181,6 +185,28 @@ def create_zip():
     zip_size_mb = ZIP_PATH.stat().st_size / (1024 * 1024)
     print(f"✓ Created {ZIP_PATH} ({zip_size_mb:.2f} MB)")
 
+def generate_hashes():
+    step("Generating SHA-256 Checksums")
+    import hashlib
+    sums_file = DIST_DIR / "SHA256SUMS.txt"
+    lines = []
+    
+    for target in [HERE / "LUCY.exe", LUCY_DIR / "LUCY.exe", ZIP_PATH]:
+        if target.exists():
+            h = hashlib.sha256()
+            with open(target, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    h.update(chunk)
+            digest = h.hexdigest()
+            name = target.relative_to(DIST_DIR) if target.is_relative_to(DIST_DIR) else target.name
+            line = f"{digest}  {name}"
+            lines.append(line)
+            print(f"  {line}")
+            
+    with open(sums_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"✓ Checksums written to {sums_file}")
+
 def main():
     DIST_DIR.mkdir(exist_ok=True)
     LUCY_DIR.mkdir(exist_ok=True)
@@ -190,6 +216,7 @@ def main():
     copy_app_files()
     verify_distribution()
     create_zip()
+    generate_hashes()
     
     step("BUILD COMPLETE!")
     print(f"Distribution folder: {LUCY_DIR}")
