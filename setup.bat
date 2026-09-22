@@ -118,6 +118,18 @@ if !errorlevel! neq 0 (
     echo [%date% %time%] import main check non-zero >> "%LOG_FILE%"
 )
 
+:: Build native launcher executable if missing
+if not exist "%APP_DIR%\LUCY.exe" (
+    if exist "%APP_DIR%\launcher\LUCY_launcher.cs" (
+        set "CSC_EXE=%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+        if exist "!CSC_EXE!" (
+            echo Building launcher...
+            echo [%date% %time%] Compiling LUCY.exe via csc.exe >> "%LOG_FILE%"
+            "!CSC_EXE!" /nologo /target:winexe /win32icon:"%APP_DIR%\config\logo.ico" /out:"%APP_DIR%\LUCY.exe" "%APP_DIR%\launcher\LUCY_launcher.cs" >> "%LOG_FILE%" 2>&1
+        )
+    )
+)
+
 echo Starting LUCY...
 echo [%date% %time%] Launching LUCY application >> "%LOG_FILE%"
 

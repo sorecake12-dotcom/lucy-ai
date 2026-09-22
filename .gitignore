@@ -28,10 +28,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.exe
 build/
 dist/
 *.egg-info/
 .eggs/
+test_clean_machine.ps1
 
 # ── Virtual environments ──────────────────────────────────────────────────────
 .venv/
