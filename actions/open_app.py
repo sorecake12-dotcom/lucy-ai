@@ -2,6 +2,7 @@ import time
 import subprocess
 import platform
 import shutil
+import os
 
 _SYSTEM = platform.system()
 
@@ -88,7 +89,7 @@ def _launch_windows(app_name: str) -> bool:
 
     if ":" in app_name:
         try:
-            subprocess.Popen(f"start {app_name}", shell=True)
+            os.startfile(app_name)
             time.sleep(1.0)
             return True
         except Exception:

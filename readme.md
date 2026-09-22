@@ -89,19 +89,39 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
 
 ## Setup
 
-### Prerequisites
+### Option A: Windows 1-Click Launch (Recommended for Windows 10 / 11)
+*No manual Python installation required.*
+
+1. **Clone or download the repository**:
+   ```cmd
+   git clone https://github.com/sorecake12-dotcom/lucy-ai.git
+   cd lucy-ai
+   ```
+
+2. **Run setup**:
+   Double-click `setup.bat` or run:
+   ```cmd
+   setup.bat
+   ```
+   * On first run, `setup.bat` automatically provisions a dedicated portable Python 3.11 runtime, installs required dependencies, compiles the native `LUCY.exe` launcher, and starts the assistant.
+   * On subsequent launches, launch LUCY instantly via `LUCY.exe` or `setup.bat`.
+
+---
+
+### Option B: Cross-Platform & Developer Setup (Windows / macOS / Linux)
+
+#### Prerequisites
 * **Python**: 3.11 to 3.13 (Python 3.11+ required).
 * **Gemini API Key**: A valid Google Gemini API key.
 
-### Installation
-
+#### Installation
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/sorecake12-dotcom/lucy-ai.git
    cd lucy-ai
    ```
 
-2. **Run automated setup**:
+2. **Run automated environment setup**:
    ```bash
    python setup.py
    ```
@@ -115,10 +135,28 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
 
 ---
 
+## Standalone Distribution & Packaging
+
+To create a self-contained, standalone Windows distribution package for deployment:
+
+```bash
+python build_dist.py
+```
+
+This generates:
+* `dist/LUCY/`: Standalone application directory with embedded Python runtime.
+* `dist/LUCY.zip`: Compressed release archive for end users.
+* `dist/SHA256SUMS.txt`: Cryptographic SHA-256 integrity checksums.
+
+---
+
 ## Architecture
 
 * **`main.py`**: Application entrypoint and `JarvisLive` orchestration loop managing WebSocket connections, audio pipelines, tool dispatch, and event handling.
 * **`ui.py`**: PyQt6 GUI implementation featuring the holographic avatar canvas, audio visualizers, settings overlays, logs, and system trays.
+* **`setup.bat`**: 1-click Windows zero-dependency environment bootstrapper and launcher compiler.
+* **`build_dist.py`**: Standalone distribution packaging pipeline creating self-contained releases with checksum verification.
+* **`launcher/`**: Native Windows launcher source (`LUCY_launcher.cs`) compiled on-demand into `LUCY.exe`.
 * **`core/`**: Fundamental engine utilities:
   * `personality.py`: Multi-personality system engine and dynamic prompt injectors for GF, JARVIS, and ASSISTANT modes.
   * `avatar.py`: Software-rendered 3D holographic head, phonetic viseme mapping, and lip-sync.
@@ -128,6 +166,7 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
   * `plugin_loader.py` & `action_loader.py`: Dynamic tool registration.
 * **`actions/`**: Built-in automation modules:
   * `desktop.py` & `computer_control.py`: Windows/OS keyboard, mouse, and process management.
+  * `code_helper.py` & `dev_agent.py`: Autonomous code execution, refactoring, and developer assistance.
   * `browser_control.py`: Playwright web automation engine.
   * `screen_processor.py`: Screen and webcam capture pipelines.
   * `email_automation.py` & `whatsapp.py`: Communications automations.

@@ -2,6 +2,7 @@ import subprocess
 import sys
 import json
 import re
+import shlex
 import time
 from pathlib import Path
 
@@ -108,11 +109,6 @@ def _take_screenshot() -> Path | None:
     except Exception as e:
         print(f"[Code] ⚠️ Screenshot failed: {e}")
         return None
-
-
-def _image_to_base64(path: Path) -> str:
-    import base64
-    return base64.b64encode(path.read_bytes()).decode("utf-8")
 
 
 _VALID_INTENTS = {"write", "edit", "explain", "run", "build", "screen_debug", "optimize"}
@@ -549,6 +545,8 @@ def code_helper(
     file_path   = p.get("file_path", "").strip()
     code        = p.get("code", "").strip()
     args        = p.get("args", [])
+    if isinstance(args, str):
+        args = shlex.split(args)
     timeout     = int(p.get("timeout", 30))
 
     if action == "auto":
