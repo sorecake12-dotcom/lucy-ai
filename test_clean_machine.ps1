@@ -58,6 +58,9 @@ $proc.WaitForExit(10000)
 
 Write-Host "setup.bat Exit Code: $($proc.ExitCode)"
 Write-Host "setup.bat Output:`n$stdout"
+if ($stderr) {
+    Write-Host "setup.bat Error:`n$stderr"
+}
 
 $logPath = Join-Path $extractedDir "logs\setup.log"
 if (Test-Path $logPath) {
