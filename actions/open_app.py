@@ -3,12 +3,6 @@ import subprocess
 import platform
 import shutil
 
-try:
-    import psutil
-    _PSUTIL = True
-except ImportError:
-    _PSUTIL = False
-
 _SYSTEM = platform.system()
 
 _APP_ALIASES: dict[str, dict[str, str]] = {

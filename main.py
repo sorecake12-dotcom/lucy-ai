@@ -10,7 +10,7 @@ if _platform.system() == "Windows":
         def __init__(self, args, **kw):
             kw["creationflags"] = kw.get("creationflags", 0) | _subprocess.CREATE_NO_WINDOW
             kw.pop("startupinfo", None)   # drop any stale/shared STARTUPINFO
-            super().__init__(args, **                       kw)
+            super().__init__(args, **kw)
 
     _subprocess.Popen = _Popen
 
@@ -71,7 +71,7 @@ from actions.web_search        import _news as _fetch_news_sync
 from memory.config_manager     import (
     get_brief_enabled, get_media_resolution, get_proactive_audio_enabled,
     get_push_to_talk_enabled, get_thinking_enabled, get_turn_tuning, get_voice,
-    get_wake_word_enabled, save_wake_word_enabled,    get_input_device, get_output_device,
+    get_wake_word_enabled, save_wake_word_enabled, get_input_device, get_output_device,
     get_personality_mode,
 )
 from core.personality          import get_personality_prompt
@@ -510,12 +510,18 @@ class _ReconnectSignal(Exception):
         self.keep_context = keep_context
 
 
+try:
+    _ExceptionGroupType = (BaseExceptionGroup,)
+except NameError:
+    _ExceptionGroupType = ()
+
+
 def _is_reconnect_signal(exc: BaseException) -> bool:
     """True if `exc` is a _ReconnectSignal, or a(n) (Base)ExceptionGroup that
     wraps one — TaskGroup bundles child exceptions into a group."""
     if isinstance(exc, _ReconnectSignal):
         return True
-    if isinstance(exc, BaseExceptionGroup):
+    if _ExceptionGroupType and isinstance(exc, _ExceptionGroupType):
         return any(_is_reconnect_signal(sub) for sub in exc.exceptions)
     return False
 
@@ -526,7 +532,7 @@ def _keep_context_of(exc: BaseException) -> bool:
     wipe the conversation."""
     if isinstance(exc, _ReconnectSignal):
         return getattr(exc, "keep_context", True)
-    if isinstance(exc, BaseExceptionGroup):
+    if _ExceptionGroupType and isinstance(exc, _ExceptionGroupType):
         for sub in exc.exceptions:
             if _is_reconnect_signal(sub):
                 return _keep_context_of(sub)
@@ -536,11 +542,11 @@ def _keep_context_of(exc: BaseException) -> bool:
 class JarvisLive:
     def __init__(self, ui: JarvisUI):
         self.ui             = ui
-        self._asst_name     = "JARVI    S"   # updated each session from config
+        self._asst_name     = "LUCY"   # updated each session from config
         self.session              = None
         self.audio_in_queue       = None
         self.out_queue            = None
-        self._loop                     = None
+        self._loop                = None
         self._is_speaking         = False
         self._speaking_lock       = threading.Lock()
         self._phone_active        = False   # True while phone mic is streaming; pauses PC mic

@@ -146,13 +146,17 @@ JSON:"""
 
     try:
         response = model.generate_content(prompt)
-        raw = _strip_fences(response.text)
+        raw_text = (response.text or "").strip() if response else ""
+        if not raw_text:
+            raise ValueError("Planner returned empty response")
+        raw = _strip_fences(raw_text)
         return json.loads(raw)
     except json.JSONDecodeError as e:
-        raise ValueError(f"Planner returned invalid JSON: {e}\nRaw: {response.text[:300]}")
+        raw_snippet = raw_text[:300] if "raw_text" in locals() else ""
+        raise ValueError(f"Planner returned invalid JSON: {e}\nRaw: {raw_snippet}") from e
     except Exception as e:
         if _is_rate_limit(e):
-            raise RateLimitError(str(e))
+            raise RateLimitError(str(e)) from e
         raise
 
 def _write_file(
@@ -225,7 +229,8 @@ Code for {file_path}:"""
 
     try:
         response = model.generate_content(prompt)
-        code = _strip_fences(response.text)
+        raw_text = (response.text or "").strip() if response else ""
+        code = _strip_fences(raw_text)
 
         full_path = project_dir / file_path
         full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -236,7 +241,7 @@ Code for {file_path}:"""
 
     except Exception as e:
         if _is_rate_limit(e):
-            raise RateLimitError(str(e))
+            raise RateLimitError(str(e)) from e
         raise
 
 def _install_dependencies(dependencies: list[str], project_dir: Path) -> str:
@@ -423,7 +428,8 @@ Fixed code for {fix_path}:"""
 
         try:
             response = model.generate_content(prompt)
-            fixed = _strip_fences(response.text)
+            raw_text = (response.text or "").strip() if response else ""
+            fixed = _strip_fences(raw_text)
 
             full_path = project_dir / fix_path
             full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -434,7 +440,7 @@ Fixed code for {fix_path}:"""
 
         except Exception as e:
             if _is_rate_limit(e):
-                raise RateLimitError(str(e))
+                raise RateLimitError(str(e)) from e
             print(f"[DevAgent] ⚠️ Could not fix {fix_path}: {e}")
 
     return updated_codes

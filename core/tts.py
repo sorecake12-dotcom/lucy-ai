@@ -254,7 +254,7 @@ class KokoroTTSEngine:
                 except RuntimeError:
                     pass
                 print(
-                    f"[TTS] Kokoro on CPU — for faster speech install CUDA PyTorch:\n"
+                    "[TTS] Kokoro on CPU — for faster speech install CUDA PyTorch:\n"
                     "      pip install torch --index-url https://download.pytorch.org/whl/cu118"
                 )
         except Exception:

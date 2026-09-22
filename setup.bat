@@ -85,6 +85,12 @@ if not exist "%APP_DIR%\runtime\python.exe" (
         goto :FAIL
     )
     echo [%date% %time%] Standalone runtime extraction complete. >> "%LOG_FILE%"
+
+    :: Remove EXTERNALLY-MANAGED marker so pip installs cleanly
+    if exist "%APP_DIR%\runtime\Lib\EXTERNALLY-MANAGED" (
+        del /f /q "%APP_DIR%\runtime\Lib\EXTERNALLY-MANAGED" >nul 2>&1
+        echo [%date% %time%] Removed EXTERNALLY-MANAGED marker >> "%LOG_FILE%"
+    )
 )
 
 :: Checking dependencies
@@ -95,7 +101,7 @@ echo [%date% %time%] Checking dependencies... >> "%LOG_FILE%"
 if !errorlevel! neq 0 (
     echo Installing required components (one-time setup, may take a few minutes)...
     echo [%date% %time%] Installing packages from requirements.txt... >> "%LOG_FILE%"
-    "%APP_DIR%\runtime\python.exe" -m pip install -r "%APP_DIR%\requirements.txt" >> "%LOG_FILE%" 2>&1
+    "%APP_DIR%\runtime\python.exe" -m pip install --break-system-packages -r "%APP_DIR%\requirements.txt" >> "%LOG_FILE%" 2>&1
     if !errorlevel! neq 0 (
         echo [ERROR] Failed to install application dependencies.
         echo Please inspect logs\setup.log for details.
@@ -122,6 +128,7 @@ if !errorlevel! neq 0 (
 if not exist "%APP_DIR%\LUCY.exe" (
     if exist "%APP_DIR%\launcher\LUCY_launcher.cs" (
         set "CSC_EXE=%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+        if not exist "!CSC_EXE!" set "CSC_EXE=%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
         if exist "!CSC_EXE!" (
             echo Building launcher...
             echo [%date% %time%] Compiling LUCY.exe via csc.exe >> "%LOG_FILE%"

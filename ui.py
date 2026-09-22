@@ -19,18 +19,17 @@ else:
     _WIN_HIDE: dict = {}
 
 from PyQt6.QtCore import (
-    QByteArray, QEasingCurve, QLineF, QObject, QParallelAnimationGroup, QPointF,
-    QPropertyAnimation, QRect, QRectF, QSize, Qt, QTimer, QUrl, pyqtSignal,
+    QByteArray, QLineF, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal,
 )
 from PyQt6.QtGui import (
     QBrush, QColor, QConicalGradient, QFont,
-    QFontDatabase, QIcon, QKeySequence, QLinearGradient, QPainter, QPainterPath,
+    QIcon, QKeySequence, QPainter,
     QPen, QPixmap, QRadialGradient, QShortcut,
 )
 from PyQt6.QtWidgets import (
     QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QPushButton, QScrollArea, QSizePolicy, QSplitter,
-    QStackedWidget, QTextEdit, QVBoxLayout, QWidget, QProgressBar,
+    QStackedWidget, QTextEdit, QVBoxLayout, QWidget,
 )
 from PyQt6.QtSvg import QSvgRenderer
 
@@ -4251,7 +4250,7 @@ class MainWindow(QMainWindow):
         for f in (findings or []):
             key, mark = self._REVIEW_MARKS.get(f.get("severity"), ("PRI_DIM", "·"))
             colour = getattr(C, key)
-            parts.append(f'<div style="margin-bottom:11px;">')
+            parts.append('<div style="margin-bottom:11px;">')
             parts.append(
                 f'<span style="color:{colour}; font-weight:bold;">{mark}</span> '
                 f'<span style="color:{C.WHITE}; font-weight:bold;">'

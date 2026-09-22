@@ -23,17 +23,45 @@ HERE = Path(__file__).resolve().parent
 DIST_DIR = HERE / "dist"
 LUCY_DIR = DIST_DIR / "LUCY"
 ZIP_PATH = DIST_DIR / "LUCY.zip"
-SRC_PYTHON = Path(r"C:\Users\ACER\AppData\Roaming\uv\python\cpython-3.11.15-windows-x86_64-none")
+
+
+def find_python_runtime() -> Path:
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        uv_py_dir = Path(appdata) / "uv" / "python"
+        if uv_py_dir.exists():
+            candidates = sorted(uv_py_dir.glob("cpython-3.11*windows-x86_64*"), reverse=True)
+            if candidates:
+                return candidates[0]
+
+    base_prefix = Path(sys.base_prefix)
+    if sys.version_info.major == 3 and sys.version_info.minor == 11 and (base_prefix / "python.exe").exists():
+        return base_prefix
+
+    fallback = Path(r"C:\Users\ACER\AppData\Roaming\uv\python\cpython-3.11.15-windows-x86_64-none")
+    if fallback.exists():
+        return fallback
+
+    raise RuntimeError("Could not find a standalone Python 3.11 runtime on this machine.")
+
+
+SRC_PYTHON = find_python_runtime()
 
 def step(msg: str):
-    print(f"\n==================================================")
+    print("\n==================================================")
     print(f">> {msg}")
-    print(f"==================================================")
+    print("==================================================")
 
 def compile_launcher():
     step("Compiling native LUCY.exe launcher")
-    csc = Path(r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe")
-    if not csc.exists():
+    candidates = [
+        Path(r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
+        Path(r"C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe"),
+        Path(os.environ.get("SystemRoot", r"C:\Windows")) / r"Microsoft.NET\Framework64\v4.0.30319\csc.exe",
+        Path(os.environ.get("SystemRoot", r"C:\Windows")) / r"Microsoft.NET\Framework\v4.0.30319\csc.exe",
+    ]
+    csc = next((c for c in candidates if c.exists()), None)
+    if not csc:
         raise RuntimeError("csc.exe not found on system.")
     
     cmd = [
@@ -65,12 +93,19 @@ def copy_runtime():
     # Install dependencies into the embedded runtime
     print("Installing requirements into embedded runtime...")
     python_exe = dest_runtime / "python.exe"
-    subprocess.run([
-        "uv", "pip", "install",
-        "--python", str(python_exe),
-        "--break-system-packages",
-        "-r", str(HERE / "requirements.txt")
-    ], check=True)
+    if shutil.which("uv"):
+        subprocess.run([
+            "uv", "pip", "install",
+            "--python", str(python_exe),
+            "--break-system-packages",
+            "-r", str(HERE / "requirements.txt")
+        ], check=True)
+    else:
+        subprocess.run([
+            str(python_exe), "-m", "pip", "install",
+            "--break-system-packages",
+            "-r", str(HERE / "requirements.txt")
+        ], check=True)
     print("✓ Dependencies installed successfully into embedded runtime.")
 
 def copy_app_files():
@@ -176,7 +211,7 @@ def create_zip():
     print(f"Zipping {LUCY_DIR} into {ZIP_PATH} ... (this may take a minute)")
     
     with zipfile.ZipFile(ZIP_PATH, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(LUCY_DIR):
+        for root, _, files in os.walk(LUCY_DIR):
             for file in files:
                 file_path = Path(root) / file
                 arcname = file_path.relative_to(DIST_DIR)

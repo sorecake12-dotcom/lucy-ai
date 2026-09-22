@@ -11,7 +11,6 @@ Install deps:  pip install fastapi "uvicorn[standard]" cryptography
 import asyncio
 import base64
 import hashlib
-import re
 import secrets
 import socket
 import string
@@ -290,7 +289,7 @@ def _ensure_crypto_js() -> None:
         print("[Dashboard] CryptoJS cached — will serve locally from now on.")
     except Exception as e:
         print(f"[Dashboard] CryptoJS download failed: {e}")
-        print(f"[Dashboard] Encryption will fall back to CDN load on client.")
+        print("[Dashboard] Encryption will fall back to CDN load on client.")
 
 
 _ensure_crypto_js()

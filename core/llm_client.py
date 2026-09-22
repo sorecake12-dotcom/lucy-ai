@@ -79,7 +79,7 @@ def ensure_ollama_running(timeout: int = 15) -> bool:
             else:
                 print(f"[LLM] Server at {url} returned non-200.  Is it running?")
             return ok
-        except Exception as e:
+        except Exception:
             print(
                 f"[LLM] Cannot reach OpenAI-compatible server at {url}.\n"
                 "      Make sure LM Studio / LocalAI / Jan is running and the server is started."
@@ -277,7 +277,7 @@ def call_llm(
                 "tool_calls": tc_list,
             }
         except Exception as e:
-            raise RuntimeError(f"OpenAI-compatible LLM call failed: {e}")
+            raise RuntimeError(f"OpenAI-compatible LLM call failed: {e}") from e
 
     # ── Ollama ──────────────────────────────────────────────────────────────
     endpoint = f"{url}/api/chat"
@@ -317,15 +317,15 @@ def call_llm(
         raise RuntimeError(
             f"Cannot connect to Ollama at {url}. "
             "Make sure Ollama is installed and run: ollama serve"
-        )
-    except requests.exceptions.Timeout:
-        raise RuntimeError("Ollama request timed out after 120 s.")
+        ) from e
+    except requests.exceptions.Timeout as e:
+        raise RuntimeError("Ollama request timed out after 120 s.") from e
     except requests.exceptions.HTTPError as e:
         print(f"[LLM] HTTPError: {e.response.status_code} — {e.response.text[:200]}")
-        raise RuntimeError(f"Ollama HTTP error: {e.response.status_code}")
+        raise RuntimeError(f"Ollama HTTP error: {e.response.status_code}") from e
     except Exception as e:
         print(f"[LLM] Unexpected error: {type(e).__name__}: {e}")
-        raise RuntimeError(f"LLM call failed: {e}")
+        raise RuntimeError(f"LLM call failed: {e}") from e
 
 
 def call_llm_text(
@@ -353,7 +353,7 @@ def call_llm_text(
         resp = requests.post(endpoint, json=payload, timeout=timeout)
         resp.raise_for_status()
         return (resp.json().get("message", {}).get("content") or "").strip()
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
         if ensure_ollama_running():
             try:
                 resp = requests.post(endpoint, json=payload, timeout=timeout)
@@ -364,9 +364,9 @@ def call_llm_text(
         raise RuntimeError(
             f"Cannot connect to Ollama at {url}. "
             "Make sure Ollama is installed and run: ollama serve"
-        )
+        ) from e
     except Exception as e:
-        raise RuntimeError(f"LLM text call failed: {e}")
+        raise RuntimeError(f"LLM text call failed: {e}") from e
 
 
 def _stream_openai(
@@ -472,17 +472,17 @@ def _stream_openai(
                 "tool_calls": tool_calls,
             }
 
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
         raise RuntimeError(
             f"Cannot reach OpenAI-compatible server at {url}.\n"
             "Make sure LM Studio / LocalAI / Jan is running and the server is started."
-        )
-    except requests.exceptions.Timeout:
-        raise RuntimeError("OpenAI-compatible stream timed out.")
+        ) from e
+    except requests.exceptions.Timeout as e:
+        raise RuntimeError("OpenAI-compatible stream timed out.") from e
     except requests.exceptions.HTTPError as e:
-        raise RuntimeError(f"OpenAI-compatible HTTP error: {e.response.status_code}")
+        raise RuntimeError(f"OpenAI-compatible HTTP error: {e.response.status_code}") from e
     except Exception as e:
-        raise RuntimeError(f"OpenAI-compatible stream failed: {e}")
+        raise RuntimeError(f"OpenAI-compatible stream failed: {e}") from e
 
 
 def call_llm_stream(
@@ -576,11 +576,11 @@ def call_llm_stream(
         raise RuntimeError(
             f"Cannot connect to Ollama at {url}. "
             "Make sure Ollama is installed and run: ollama serve"
-        )
-    except requests.exceptions.Timeout:
-        raise RuntimeError("Ollama stream timed out.")
+        ) from e
+    except requests.exceptions.Timeout as e:
+        raise RuntimeError("Ollama stream timed out.") from e
     except requests.exceptions.HTTPError as e:
-        raise RuntimeError(f"Ollama HTTP error: {e.response.status_code}")
+        raise RuntimeError(f"Ollama HTTP error: {e.response.status_code}") from e
     except Exception as e:
         print(f"[LLM] Stream error: {type(e).__name__}: {e}")
-        raise RuntimeError(f"LLM stream failed: {e}")
+        raise RuntimeError(f"LLM stream failed: {e}") from e

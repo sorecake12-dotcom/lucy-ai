@@ -831,7 +831,7 @@ class HoloAvatar:
         # the antialiased wireframe drawn afterwards covers the outline.
         p.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         p.setPen(Qt.PenStyle.NoPen)
-        for q, sh in zip(tris, shade):
+        for q, sh in zip(tris, shade, strict=False):
             p.setBrush(lut[sh])
             p.drawPolygon(QPolygonF([QPointF(q[0], q[1]), QPointF(q[2], q[3]),
                                      QPointF(q[4], q[5])]))
@@ -891,7 +891,7 @@ class HoloAvatar:
 
     def _ring(self, xs, ys, idx) -> QPolygonF:
         return QPolygonF([QPointF(float(x), float(y))
-                          for x, y in zip(xs[idx], ys[idx])])
+                          for x, y in zip(xs[idx], ys[idx], strict=False)])
 
     def _paint_features(self, p: QPainter, xs, ys, norms, r: float,
                         primary: QColor, accent: QColor, bg: QColor,
@@ -916,7 +916,7 @@ class HoloAvatar:
             mid_y = float(ey.mean())
             if vis < 0.999:
                 ey = mid_y + (ey - mid_y) * max(0.04, vis)
-            poly = QPolygonF([QPointF(float(a), float(b)) for a, b in zip(ex, ey)])
+            poly = QPolygonF([QPointF(float(a), float(b)) for a, b in zip(ex, ey, strict=False)])
 
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(QBrush(_blend(bg, primary, 22)))       # socket shadow
@@ -960,9 +960,9 @@ class HoloAvatar:
             # single cheapest thing that makes an open mouth look like speech.
             ux, uy = xs[self._lip_up], ys[self._lip_up]
             th = open_h * 0.30
-            pts = [QPointF(float(x), float(y)) for x, y in zip(ux, uy)]
+            pts = [QPointF(float(x), float(y)) for x, y in zip(ux, uy, strict=False)]
             pts += [QPointF(float(x), float(y) + th)
-                    for x, y in zip(ux[::-1], uy[::-1])]
+                    for x, y in zip(ux[::-1], uy[::-1], strict=False)]
             p.setBrush(QBrush(_blend(bg, primary, 150 + 60 * self._mouth)))
             p.drawPolygon(QPolygonF(pts))
 
