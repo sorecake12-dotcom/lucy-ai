@@ -25,8 +25,6 @@ if exist "%APP_DIR%\runtime\python.exe" (
         echo [%date% %time%] Fast launch initiated >> "%LOG_FILE%"
         if exist "%APP_DIR%\LUCY.exe" (
             start "" "%APP_DIR%\LUCY.exe"
-        ) else if exist "%APP_DIR%\runtime\pythonw.exe" (
-            start "" "%APP_DIR%\runtime\pythonw.exe" "%APP_DIR%\main.py"
         ) else (
             start "" "%APP_DIR%\runtime\python.exe" "%APP_DIR%\main.py"
         )
@@ -142,8 +140,6 @@ echo [%date% %time%] Launching LUCY application >> "%LOG_FILE%"
 
 if exist "%APP_DIR%\LUCY.exe" (
     start "" "%APP_DIR%\LUCY.exe"
-) else if exist "%APP_DIR%\runtime\pythonw.exe" (
-    start "" "%APP_DIR%\runtime\pythonw.exe" "%APP_DIR%\main.py"
 ) else (
     start "" "%APP_DIR%\runtime\python.exe" "%APP_DIR%\main.py"
 )

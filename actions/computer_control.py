@@ -266,6 +266,18 @@ def _focus_window(title: str) -> str:
                 capture_output=True, timeout=5, **_WIN_HIDE,
             )
             time.sleep(0.3)
+            # AppActivate's True/False is swallowed by the shell, so verify the
+            # foreground window directly. An unchecked "Focused window: X" is
+            # how keystrokes end up typed into whatever was actually in front.
+            try:
+                import pygetwindow as _gw
+                active = _gw.getActiveWindow()
+                active_title = (active.title or "") if active else ""
+            except Exception:
+                active_title = ""
+            if active_title and title.lower() not in active_title.lower():
+                return (f"Could not focus '{title}' — "
+                        f"'{active_title[:50]}' is in the foreground instead.")
             return f"Focused window: {title}"
         except Exception as e:
             return f"focus_window (Windows) failed: {e}"

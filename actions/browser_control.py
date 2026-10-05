@@ -638,8 +638,12 @@ class _BrowserSession:
         page     = await self._get_page()
         prev_url = page.url
 
-        async def _do_goto(p: Page) -> str:
-            """Attempt navigation and return the resulting URL (may still be blank)."""
+        async def _do_goto(p: Page) -> tuple[str, str | None]:
+            """Attempt navigation; return (resulting URL, navigation error).
+            The error is remembered rather than swallowed — Chrome keeps the
+            previous page's URL when a goto is refused, so without it a dead
+            domain would be reported as successfully opening the last page."""
+            nav_error: str | None = None
             try:
                 await p.goto(url, wait_until="domcontentloaded", timeout=30_000)
                 await asyncio.sleep(0.3)
@@ -647,20 +651,47 @@ class _BrowserSession:
                 pass   # page may have partially loaded — check URL below
             except Exception as e:
                 print(f"[Browser] goto exception (non-fatal): {e}")
-            return p.url
+                nav_error = str(e).splitlines()[0][:120]
+            return p.url, nav_error
 
-        result_url = await _do_goto(page)
+        result_url, nav_error = await _do_goto(page)
 
         if result_url in ("about:blank", "", None, prev_url) and prev_url in ("about:blank", "", None):
             print(f"[Browser] Still blank after goto — retrying on new tab: {url}")
             try:
                 new_page   = await self._context.new_page()
                 self._page = new_page
-                result_url = await _do_goto(new_page)
+                result_url, nav_error = await _do_goto(new_page)
             except Exception as e:
                 print(f"[Browser] New-tab retry failed: {e}")
 
         if result_url and result_url not in ("about:blank", "", None):
+            # The navigation itself was refused and we are still sitting on a
+            # different site — report the failure instead of the old page.
+            if nav_error:
+                from urllib.parse import urlparse as _urlparse
+                try:
+                    landed   = _urlparse(result_url).netloc.lower()
+                    wanted   = _urlparse(url).netloc.lower()
+                    if not landed or landed != wanted:
+                        return f"Could not open: {url} ({nav_error})"
+                except Exception:
+                    return f"Could not open: {url} ({nav_error})"
+            # Chrome/Edge render failed navigation as an in-page error while the
+            # address bar still shows the URL — so "Opened:" would be a lie for
+            # dead domains. Read the error page's signature text and say so.
+            try:
+                body = (await page.inner_text("body"))[:600].lower()
+                if any(sig in body for sig in (
+                        "this site can't be reached",
+                        "can't reach this page",
+                        "this page isn't working",
+                        "err_name_not_resolved",
+                        "err_connection_refused",
+                        "took too long to respond")):
+                    return f"Could not open: {url} (browser error page)"
+            except Exception:
+                pass
             return f"Opened: {result_url}"
         return f"Could not open: {url}"
 
@@ -689,7 +720,12 @@ class _BrowserSession:
         try:
             el = page.locator(selector).first if selector else page.locator(":focus")
             if clear_first:
-                await el.clear()
+                try:
+                    await el.clear()
+                except Exception:
+                    # The focused element may not be a clearable input (a
+                    # button, the page body) — typing into it is still valid.
+                    pass
             await el.type(text, delay=50)
             return "Text typed."
         except Exception as e:

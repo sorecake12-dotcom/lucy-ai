@@ -3524,9 +3524,11 @@ class MainWindow(QMainWindow):
     def _create_lnk_windows(lnk: str, target: str, args: str,
                              work_dir: str, icon_loc: str) -> None:
         """
-        Create a Windows .lnk shortcut WITHOUT launching PowerShell or cmd.
-        Tries win32com (pywin32) first; falls back to wscript.exe + VBScript.
-        wscript.exe is a GUI-mode host — it never opens a console window.
+        Create a Windows .lnk shortcut without opening console windows.
+        Tries:
+          1. win32com (pywin32) - in-process COM
+          2. PowerShell COM - hidden window, standard on Win 10/11
+          3. wscript.exe + VBScript fallback
         """
         # ── Option 1: pywin32 (pure Python COM, zero subprocess) ──────────
         try:
@@ -3534,42 +3536,100 @@ class MainWindow(QMainWindow):
             sh = Dispatch("WScript.Shell")
             sc = sh.CreateShortCut(lnk)
             sc.TargetPath       = target
-            sc.Arguments        = f'"{args}"'
+            if args:
+                sc.Arguments    = f'"{args}"'
             sc.WorkingDirectory = work_dir
             sc.Description      = "LUCY AI Assistant"
-            sc.IconLocation     = icon_loc
+            if icon_loc:
+                sc.IconLocation = icon_loc
             sc.save()
-            return
-        except ImportError:
+            try:
+                if Path(lnk).exists():
+                    return
+            except Exception:
+                return
+        except Exception:
             pass
 
-        # ── Option 2: wscript.exe + VBScript (always available on Windows,
-        #    GUI-mode executable — never opens a console window) ────────────
-        vbs = "\n".join([
-            'Set ws = CreateObject("WScript.Shell")',
-            f'Set sc = ws.CreateShortcut("{lnk}")',
-            f'sc.TargetPath = "{target}"',
-            f'sc.Arguments = Chr(34) & "{args}" & Chr(34)',
-            f'sc.WorkingDirectory = "{work_dir}"',
-            'sc.Description = "LUCY AI Assistant"',
-            f'sc.IconLocation = "{icon_loc}"',
-            'sc.Save',
-        ])
-        import tempfile
-        fd, tmp = tempfile.mkstemp(suffix=".vbs")
+        # ── Option 2: PowerShell COM (hidden, no console window, robust) ──
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(vbs)
-            proc = subprocess.Popen(
-                ["wscript.exe", "/nologo", tmp],
-                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
+            esc_lnk = lnk.replace("'", "''")
+            esc_target = target.replace("'", "''")
+            esc_work = work_dir.replace("'", "''")
+            ps = [
+                "$ws = New-Object -ComObject WScript.Shell;",
+                f"$sc = $ws.CreateShortcut('{esc_lnk}');",
+                f"$sc.TargetPath = '{esc_target}';",
+                f"$sc.WorkingDirectory = '{esc_work}';",
+                "$sc.Description = 'LUCY AI Assistant';",
+            ]
+            if args:
+                esc_args = args.replace("'", "''")
+                ps.append(f"$sc.Arguments = '\"{esc_args}\"';")
+            if icon_loc:
+                esc_icon = icon_loc.replace("'", "''")
+                ps.append(f"$sc.IconLocation = '{esc_icon}';")
+            ps.append("$sc.Save()")
+            subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-WindowStyle",
+                    "Hidden",
+                    "-Command",
+                    " ".join(ps),
+                ],
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                capture_output=True,
+                timeout=10,
             )
-            proc.wait(timeout=10)
-        finally:
             try:
-                os.unlink(tmp)
+                if Path(lnk).exists():
+                    return
             except Exception:
-                pass
+                return
+        except Exception:
+            pass
+
+        # ── Option 3: wscript.exe + VBScript (fallback) ───────────────────
+        try:
+            vbs_lines = [
+                'Set ws = CreateObject("WScript.Shell")',
+                f'Set sc = ws.CreateShortcut("{lnk.replace(chr(34), chr(34)*2)}")',
+                f'sc.TargetPath = "{target.replace(chr(34), chr(34)*2)}"',
+                f'sc.WorkingDirectory = "{work_dir.replace(chr(34), chr(34)*2)}"',
+                'sc.Description = "LUCY AI Assistant"',
+            ]
+            if args:
+                vbs_lines.append(f'sc.Arguments = Chr(34) & "{args.replace(chr(34), chr(34)*2)}" & Chr(34)')
+            if icon_loc:
+                vbs_lines.append(f'sc.IconLocation = "{icon_loc.replace(chr(34), chr(34)*2)}"')
+            vbs_lines.append('sc.Save')
+
+            import tempfile
+            fd, tmp = tempfile.mkstemp(suffix=".vbs")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write("\n".join(vbs_lines))
+                proc = subprocess.Popen(
+                    ["wscript.exe", "/nologo", tmp],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+                proc.wait(timeout=5)
+            finally:
+                try:
+                    os.unlink(tmp)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        try:
+            if not Path(lnk).exists():
+                raise RuntimeError(f"Could not create shortcut at {lnk}")
+        except PermissionError:
+            pass
 
     @staticmethod
     def _get_desktop_dir() -> Path:
@@ -3674,36 +3734,69 @@ class MainWindow(QMainWindow):
 
             # ── Windows ───────────────────────────────────────────────────────
             if _os == "Windows":
-                pythonw  = python.parent / "pythonw.exe"
-                target   = str(pythonw if pythonw.exists() else python)
-                icon_loc = str(ico_path) if ico_path.exists() else f"{target},0"
+                lucy_exe = script.parent / "LUCY.exe"
+                runtime_py = script.parent / "runtime" / "python.exe"
+                if lucy_exe.exists() and runtime_py.exists():
+                    target = str(lucy_exe)
+                    args = ""
+                else:
+                    target = str(python)
+                    args = str(script)
+
+                if ico_path.exists():
+                    icon_loc = str(ico_path)
+                elif lucy_exe.exists():
+                    icon_loc = f"{lucy_exe},0"
+                else:
+                    icon_loc = f"{target},0"
+
                 desk_dirs = [desktop]
-                alt_desk = Path.home() / "Desktop"
-                if alt_desk.exists() and alt_desk.resolve() != desktop.resolve():
-                    desk_dirs.append(alt_desk)
+                try:
+                    alt_desk = Path.home() / "Desktop"
+                    if alt_desk.exists() and alt_desk.resolve() != desktop.resolve():
+                        desk_dirs.append(alt_desk)
+                except Exception:
+                    pass
+
+                success = False
+                last_err = None
                 for d in desk_dirs:
-                    lnk = str(d / "LUCY.lnk")
-                    self._create_lnk_windows(lnk, target, str(script),
-                                             str(script.parent), icon_loc)
-                    for old_name in ("J.A.R.V.I.S.lnk", "JARVIS.lnk"):
-                        old_lnk = d / old_name
-                        if old_lnk.exists():
+                    try:
+                        d.mkdir(parents=True, exist_ok=True)
+                        lnk = str(d / "LUCY.lnk")
+                        self._create_lnk_windows(lnk, target, args,
+                                                 str(script.parent), icon_loc)
+                        success = True
+                        for old_name in ("J.A.R.V.I.S.lnk", "JARVIS.lnk"):
+                            old_lnk = d / old_name
                             try:
-                                old_lnk.unlink()
+                                if old_lnk.exists():
+                                    old_lnk.unlink()
                             except Exception:
                                 pass
-                start_menu = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
-                if start_menu.exists():
-                    start_lnk = str(start_menu / "LUCY.lnk")
-                    self._create_lnk_windows(start_lnk, target, str(script),
-                                             str(script.parent), icon_loc)
-                    for old_name in ("J.A.R.V.I.S.lnk", "JARVIS.lnk"):
-                        old_s_lnk = start_menu / old_name
-                        if old_s_lnk.exists():
+                    except Exception as e:
+                        last_err = e
+                        print(f"[Shortcut] Warning for {d}: {e}")
+
+                try:
+                    start_menu = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+                    if start_menu.exists():
+                        start_lnk = str(start_menu / "LUCY.lnk")
+                        self._create_lnk_windows(start_lnk, target, args,
+                                                 str(script.parent), icon_loc)
+                        success = True
+                        for old_name in ("J.A.R.V.I.S.lnk", "JARVIS.lnk"):
+                            old_s_lnk = start_menu / old_name
                             try:
-                                old_s_lnk.unlink()
+                                if old_s_lnk.exists():
+                                    old_s_lnk.unlink()
                             except Exception:
                                 pass
+                except Exception as e:
+                    print(f"[Shortcut] Warning for start menu: {e}")
+
+                if not success and last_err:
+                    raise last_err
 
             # ── macOS — proper .app bundle (no Terminal window) ───────────────
             elif _os == "Darwin":
@@ -4667,10 +4760,14 @@ class MainWindow(QMainWindow):
                         except FileNotFoundError:
                             pass
                 else:
-                    pythonw = Path(sys.executable).parent / "pythonw.exe"
-                    exe = str(pythonw if pythonw.exists() else sys.executable)
-                    winreg.SetValueEx(reg, "LUCY_AI", 0, winreg.REG_SZ,
-                                      f'"{exe}" "{script}"')
+                    lucy_exe = Path(__file__).resolve().parent / "LUCY.exe"
+                    runtime_py = Path(__file__).resolve().parent / "runtime" / "python.exe"
+                    if lucy_exe.exists() and runtime_py.exists():
+                        winreg.SetValueEx(reg, "LUCY_AI", 0, winreg.REG_SZ, f'"{lucy_exe}"')
+                    else:
+                        exe = str(sys.executable)
+                        winreg.SetValueEx(reg, "LUCY_AI", 0, winreg.REG_SZ,
+                                          f'"{exe}" "{script}"')
                 winreg.CloseKey(reg)
             elif _OS == "Darwin":
                 plist_dir = Path.home() / "Library" / "LaunchAgents"

@@ -29,7 +29,7 @@ namespace LucyLauncher
                     return;
                 }
 
-                string exeToUse = File.Exists(pythonwExe) ? pythonwExe : (File.Exists(pythonExe) ? pythonExe : null);
+                string exeToUse = File.Exists(pythonExe) ? pythonExe : (File.Exists(pythonwExe) ? pythonwExe : null);
 
                 if (exeToUse == null)
                 {
@@ -74,7 +74,22 @@ namespace LucyLauncher
                     CreateNoWindow = true
                 };
 
-                Process.Start(psi);
+                try
+                {
+                    Process.Start(psi);
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    if (exeToUse != pythonExe && File.Exists(pythonExe))
+                    {
+                        psi.FileName = pythonExe;
+                        Process.Start(psi);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
             }
             catch (Exception ex)
             {

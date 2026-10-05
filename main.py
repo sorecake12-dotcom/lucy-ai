@@ -86,6 +86,10 @@ from core.wake_word            import (
     WakeWordDetector, is_ready as wake_is_ready, install_and_download as wake_install,
 )
 from actions.creator_info      import is_creator_query, get_creator_response
+from actions.serious_mode      import (
+    wire as serious_wire, request_stop as serious_request_stop,
+    is_active as serious_is_active,
+)
 
 # How long the assistant stays awake with no user speech before it auto-sleeps
 # again (wake-word mode only).
@@ -966,6 +970,12 @@ class JarvisLive:
         if self._turn_done_event:
             self._turn_done_event.clear()
         self.ui.write_log("SYS: Interrupted — listening...")
+        # Serious Mode: ESC also halts any autonomous task promptly. Files
+        # already collected are preserved; the existing interrupt behaviour
+        # above is unchanged.
+        if serious_is_active():
+            serious_request_stop("ESC interrupt")
+            self.ui.write_log("SYS: Serious Mode task stopping...")
 
     def speak(self, text: str):
         if not self._loop or not self.session:
@@ -982,6 +992,44 @@ class JarvisLive:
         short = str(error)[:120]
         self.ui.write_log(f"ERR: {tool_name} — {short}")
         self.speak(f"Sir, {tool_name} encountered an error. {short}")
+
+    # ── Serious Mode progress channel ────────────────────────────────────────
+
+    def _serious_notify(self, message: str) -> None:
+        """Thread-safe progress line from the Serious Mode engine.
+
+        Written to the HUD log always; spoken through the live session when
+        one is connected, the same way plugin_say delivers mid-task speech.
+        Gemini phrases it naturally in the user's own language — the engine
+        never talks to the user directly."""
+        self.ui.write_log(f"SERIOUS: {message}")
+        loop = getattr(self, "_loop", None)
+        if not loop or not self.session:
+            return
+
+        async def _say():
+            try:
+                await self.session.send_client_content(
+                    turns={"role": "user", "parts": [{"text":
+                        f"[SERIOUS MODE PROGRESS] {message}\n"
+                        "Tell the user this in ONE short sentence in the user's "
+                        "own language. Do not call any tools."}]},
+                    turn_complete=True,
+                )
+            except Exception as e:
+                print(f"[Serious] notify failed: {e}")
+
+        try:
+            asyncio.run_coroutine_threadsafe(_say(), loop)
+        except Exception as e:
+            print(f"[Serious] notify dispatch failed: {e}")
+
+    def _serious_restore_state(self) -> None:
+        """Return the HUD to its normal state after a Serious Mode task ends."""
+        try:
+            self.ui.set_state("MUTED" if self.ui.muted else "LISTENING")
+        except Exception:
+            pass
 
     def _build_config(self) -> types.LiveConnectConfig:
         from datetime import datetime
@@ -2151,6 +2199,17 @@ class JarvisLive:
             log  = self.ui.write_log,
         )
         set_trim_notifier(self.ui.write_log)
+
+        # Serious Mode: the autonomous engine reports progress through the live
+        # session and the HUD. Wiring lives here, next to the confirmation
+        # gate, so the engine itself stays free of UI and session knowledge.
+        serious_wire(
+            notify  = self._serious_notify,
+            log     = self.ui.write_log,
+            content = self.ui.show_content,
+            state   = self.ui.set_state,
+            restore = self._serious_restore_state,
+        )
 
         # Tell the device picker the exact rates the streams open at, from the
         # constants that actually open them — so it can never list a device that

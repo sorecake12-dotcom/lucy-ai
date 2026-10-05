@@ -396,4 +396,54 @@ def save_personality_mode(mode: str) -> None:
     """Persist the selected personality mode to config."""
     from core.personality import normalize_mode
     clean_mode = normalize_mode(mode)
-    _patch_config(personality_mode=clean_mode)
+    _patch_config(personality_mode=clean_mode)
+
+# ── Serious Mode (autonomous research/execution mode) ────────────────────────
+# Limits that keep the autonomous loop bounded. Everything is overridable in
+# config/api_keys.json under the "serious_mode" key; unknown or broken values
+# fall back to the default, and hard ceilings stop a bad config from unbounding
+# the loop again.
+
+_SERIOUS_LIMIT_DEFAULTS = {
+    "max_searches":        6,     # web_search calls per task
+    "max_sources":         8,     # distinct pages read per task
+    "max_screenshots":     4,     # evidence screenshots per task
+    "max_pdf_downloads":   3,     # PDFs fetched per task
+    "max_failures":        5,     # failed steps before giving up
+    "max_steps":           12,    # action steps for non-research objectives
+    "time_budget_minutes": 12,    # wall-clock budget for a whole task
+    "min_article_chars":   400,   # shorter page text is treated as a failed read
+}
+
+_SERIOUS_LIMIT_CEILINGS = {
+    "max_searches": 10, "max_sources": 12, "max_screenshots": 8,
+    "max_pdf_downloads": 6, "max_failures": 10, "max_steps": 20,
+    "time_budget_minutes": 30, "min_article_chars": 5000,
+}
+
+
+def get_serious_limits() -> dict:
+    """Serious Mode loop limits, from config['serious_mode'] with defaults.
+
+    Never raises: a malformed entry yields the defaults, clamped to the
+    ceilings, so the autonomous loop can never run away."""
+    out: dict = {}
+    for key, default in _SERIOUS_LIMIT_DEFAULTS.items():
+        try:
+            out[key] = type(default)(default)
+        except Exception:
+            out[key] = default
+    try:
+        raw = load_api_keys().get("serious_mode", {})
+    except Exception:
+        raw = {}
+    if isinstance(raw, dict):
+        for key in _SERIOUS_LIMIT_DEFAULTS:
+            if key in raw:
+                try:
+                    out[key] = type(_SERIOUS_LIMIT_DEFAULTS[key])(raw[key])
+                except Exception:
+                    pass          # keep the default for this key
+    for key, ceiling in _SERIOUS_LIMIT_CEILINGS.items():
+        out[key] = max(1, min(int(out[key]), ceiling))
+    return out
