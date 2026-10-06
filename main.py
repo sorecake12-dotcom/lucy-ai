@@ -1055,18 +1055,21 @@ class JarvisLive:
             f"Use this to calculate exact times for reminders.\n\n"
         )
 
+        p_mode = get_personality_mode()
         # Identity injection — overrides any hardcoded name in prompt.txt
-        # Address form is a property of the language being spoken, so it is
-        # stated as a principle rather than a two-language lookup — the model
-        # already knows the respectful register of whatever language it is in.
-        _addr = (f"ADDRESS: Always call the user '{_user_name}'."
-                 if _user_name
-                 else 'ADDRESS: Address the user with the ordinary respectful form '
-                      'for a superior in the language you are currently speaking — '
-                      '"sir" in English, its everyday equivalent in any other '
-                      'language. Never an archaic or aristocratic form, and never '
-                      'the form from a different language than the one you are '
-                      'speaking in this sentence.')
+        if p_mode == "GF":
+            _addr = (f"ADDRESS: Call the user by their name '{_user_name}' or casual, natural terms of affection ('babe', 'sweetheart') organically. NEVER call the user 'sir', 'boss', 'master', or formal titles — you are speaking with your partner."
+                     if _user_name
+                     else "ADDRESS: Address the user casually, warmly and affectionately as your partner. NEVER call them 'sir', 'boss', 'master', or use formal servant titles.")
+        else:
+            _addr = (f"ADDRESS: Always call the user '{_user_name}'."
+                     if _user_name
+                     else 'ADDRESS: Address the user with the ordinary respectful form '
+                          'for a superior in the language you are currently speaking — '
+                          '"sir" in English, its everyday equivalent in any other '
+                          'language. Never an archaic or aristocratic form, and never '
+                          'the form from a different language than the one you are '
+                          'speaking in this sentence.')
         identity_ctx = (
             f"[IDENTITY]\n"
             f"Your name is {self._asst_name}. "
@@ -1100,13 +1103,22 @@ class JarvisLive:
             ),
         })
 
+        p_mode = get_personality_mode()
+        p_prompt = get_personality_prompt(p_mode)
+
+        if p_mode != "JARVIS" and "[VOICE]\n" in sys_prompt:
+            # Replace default JARVIS [VOICE] block with active personality mode
+            voice_start = sys_prompt.find("[VOICE]\n")
+            next_sec = sys_prompt.find("\n[ACKNOWLEDGE BEFORE A SILENCE]", voice_start)
+            if next_sec != -1:
+                sys_prompt = sys_prompt[:voice_start] + p_prompt + "\n\n" + sys_prompt[next_sec+1:]
+                p_prompt = ""
+
         parts = [time_ctx, identity_ctx]
         if mem_str:
             parts.append(mem_str)
         parts.append(sys_prompt)
 
-        p_mode = get_personality_mode()
-        p_prompt = get_personality_prompt(p_mode)
         if p_prompt:
             parts.append(p_prompt)
         print(f"[JARVIS] Configured personality: {p_mode}")
@@ -1894,10 +1906,16 @@ class JarvisLive:
                 f" Also briefly and naturally mention that {_when}: {last['summary']}"
             )
 
-        p1 = (
-            f"Greet the user warmly, mention it is {time_str}, and say you are fetching today's news now.{session_clause} "
-            f"Keep it to 2 short sentences max. Do not call any tools.{lang_clause}{name_clause}"
-        )
+        if get_personality_mode() == "GF":
+            p1 = (
+                f"Greet your partner warmly, affectionately and casually, mention it is {time_str}, and say you're pulling up today's headlines for them.{session_clause} "
+                f"Keep it to 2 short sentences max. No robotic assistant phrasing. Do not call any tools.{lang_clause}{name_clause}"
+            )
+        else:
+            p1 = (
+                f"Greet the user warmly, mention it is {time_str}, and say you are fetching today's news now.{session_clause} "
+                f"Keep it to 2 short sentences max. Do not call any tools.{lang_clause}{name_clause}"
+            )
 
         # Clear the turn-done event so we can wait for Phase 1 to finish
         if self._turn_done_event:
@@ -2092,9 +2110,10 @@ class JarvisLive:
                 monitors     = await asyncio.to_thread(list_monitors)
                 recent_turns = self._session_log[-8:] if self._session_log else []
                 prompt = self._proactive.build_prompt(
-                    memory       = memory,
-                    monitors     = monitors or None,
-                    recent_turns = recent_turns or None,
+                    memory           = memory,
+                    monitors         = monitors or None,
+                    recent_turns     = recent_turns or None,
+                    personality_mode = get_personality_mode(),
                 )
                 await self.session.send_client_content(
                     turns={"role": "user", "parts": [{"text": prompt}]},

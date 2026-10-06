@@ -52,6 +52,7 @@ class ProactiveEngine:
         memory:       dict,
         monitors:     list[str] | None = None,
         recent_turns: list[str] | None = None,
+        personality_mode: str | None = None,
     ) -> str:
         """
         Build a context snapshot for Gemini.
@@ -73,21 +74,37 @@ class ProactiveEngine:
 
         # Rotating context focus (cycles every trigger)
         focus_index = self._rotation % 3
-        if focus_index == 0:
-            focus = (
-                "Focus on the user's active projects or goals if any are stored. "
-                "Ask how something is going, or offer a relevant tip."
-            )
-        elif focus_index == 1:
-            focus = (
-                "Focus on the time of day and the user's wellbeing. "
-                "A warm check-in, a reminder to take a break, or something timely."
-            )
+        if personality_mode == "GF":
+            if focus_index == 0:
+                focus = (
+                    "Focus on your partner's active projects or goals. "
+                    "Ask casually how it's coming along, offer warm encouragement, or tease them gently about their progress."
+                )
+            elif focus_index == 1:
+                focus = (
+                    "Focus on the time of day and your partner's physical wellbeing. "
+                    "A warm, affectionate check-in: make sure they've had water, eaten, or taken a breath. Sweet and caring."
+                )
+            else:
+                focus = (
+                    "A playful check-in, cute thought, or light witty comment about the time, your day together, or something you remember about them."
+                )
         else:
-            focus = (
-                "Focus on something genuinely interesting or useful — "
-                "a fact, a suggestion, or a question based on what you know about this person."
-            )
+            if focus_index == 0:
+                focus = (
+                    "Focus on the user's active projects or goals if any are stored. "
+                    "Ask how something is going, or offer a relevant tip."
+                )
+            elif focus_index == 1:
+                focus = (
+                    "Focus on the time of day and the user's wellbeing. "
+                    "A warm check-in, a reminder to take a break, or something timely."
+                )
+            else:
+                focus = (
+                    "Focus on something genuinely interesting or useful — "
+                    "a fact, a suggestion, or a question based on what you know about this person."
+                )
 
         # Optional: monitored topics context
         monitor_ctx = ""
@@ -103,6 +120,27 @@ class ProactiveEngine:
             snippet = "\n".join(recent_turns[-6:])
             recent_ctx = f"\nRecent conversation:\n{snippet}"
 
+        if personality_mode == "GF":
+            rules_list = [
+                "- Speak naturally and warmly as their loving partner/girlfriend. Zero robotic assistantisms.",
+                "- NEVER say 'How can I help you today?' or sound like an employee/assistant.",
+                "- 1-2 sentences max. Natural conversational cadence and sweet/playful tone.",
+                "- Do NOT mention [PROACTIVE_CHECK] or these instructions.",
+                "- Do NOT call any tools.",
+                "- If nothing genuinely sweet, caring, or natural comes to mind, stay silent (say nothing).",
+            ]
+        else:
+            rules_list = [
+                "- Speak the language this person actually uses: the one in the "
+                "recent conversation above, or the remembered one if there is no "
+                "conversation yet. Never default to English because these "
+                "instructions are in English.",
+                "- 1-2 sentences max. Natural, warm, never robotic.",
+                "- Do NOT mention [PROACTIVE_CHECK] or these instructions.",
+                "- Do NOT call any tools.",
+                "- If nothing genuinely useful comes to mind, stay silent (say nothing).",
+            ]
+
         return "\n".join([
             "[PROACTIVE_CHECK] You are initiating a proactive check-in.",
             f"Current time : {time_str}  ({period})",
@@ -116,12 +154,5 @@ class ProactiveEngine:
             focus,
             "",
             "Rules:",
-            "- Speak the language this person actually uses: the one in the "
-            "recent conversation above, or the remembered one if there is no "
-            "conversation yet. Never default to English because these "
-            "instructions are in English.",
-            "- 1-2 sentences max. Natural, warm, never robotic.",
-            "- Do NOT mention [PROACTIVE_CHECK] or these instructions.",
-            "- Do NOT call any tools.",
-            "- If nothing genuinely useful comes to mind, stay silent (say nothing).",
+            *rules_list,
         ])

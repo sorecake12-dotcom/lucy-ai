@@ -130,16 +130,19 @@ def save_push_to_talk_enabled(enabled: bool) -> None:
     _save_flag("push_to_talk_enabled", enabled)
 
 
-HUD_STYLES = ("face", "core")
+HUD_STYLES = ("face", "core", "richie3d")
 
 
 def get_hud_style() -> str:
-    """Which centrepiece the HUD draws: the animated head, or the reactor core.
+    """Which centrepiece the HUD draws: the animated head, the reactor core,
+    or the 3D character (Richie — assets/characters/richie/8.pmx).
 
-    Taste, not capability — both render in the same software painter and cost
-    about the same. Defaults to the head because that is what MARK LIV shipped
-    with; anyone who preferred the older look can switch back in ⚙ and the
-    choice survives a restart.
+    Taste, not capability — all three draw on the same HUD canvas. Defaults
+    to the head because that is what MARK LIV shipped with; anyone who
+    preferred the older look can switch back in ⚙ and the choice survives a
+    restart. 'richie3d' falls back to 'face' at render time if the model file
+    is missing or cannot be loaded, so a broken asset never takes the HUD
+    down with it.
     """
     v = str(load_api_keys().get("hud_style", "face")).strip().lower()
     return v if v in HUD_STYLES else "face"
