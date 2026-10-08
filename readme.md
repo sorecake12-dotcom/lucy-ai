@@ -70,9 +70,10 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
   * **ASSISTANT**: Professional, concise, direct, and task-oriented with zero fluff and no unnecessary confirmation questions.
 * **Name & Addressing**: Configurable assistant name and user title.
 * **Live HUD Theming**: Dynamic theme color picker supporting full UI recoloring and custom hex values.
-* **Holographic Wireframe Face & HUD Modes**: Switch between the futuristic Wireframe Face and the Arc Reactor Core centerpiece:
-  * **Real-Time Lip-Sync**: Anatomically synchronized mouth movement reacting to actual TTS playback audio and visemes; lips part naturally, revealing subtle holographic oral depth, and smoothly return to neutral closed lips when silent or interrupted.
-  * **Natural Eye Dynamics**: Living green eyes with organic randomized blinking, subtle micro-saccades, and state-driven gaze shifts (focused gaze when listening, thoughtful look-away when thinking).
+* **Holographic Wireframe Face, Reactor Core & 3D Particle Blob**: Switch seamlessly between visual centerpiece styles:
+  * **Wireframe Face**: Real-time lip-sync with anatomical mouth depth and living green eyes with organic blinking and state-driven gaze shifts.
+  * **Arc Reactor Core**: Pulsing cybernetic reactor centerpiece.
+  * **3D Particle Blob & Morphing Visualizer**: Living particle sphere that morphs on command into 3D particle objects (`car`, `heart`, `earth`, `rocket`, `tree`, `cat`, `house`, `robot`, `saturn`, `cube`, `sphere`, `star`, `flower`, `human silhouette`) with dynamic palettes.
 * **Audio Device Selector**: In-app selection of preferred microphone and output speaker hardware.
 
 ### System & Desktop Integration
@@ -92,19 +93,20 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
 ### Option A: Windows 1-Click Launch (Recommended for Windows 10 / 11)
 *No manual Python installation required.*
 
-1. **Clone or download the repository**:
+1. **Download the release or clone the repository**:
    ```cmd
    git clone https://github.com/sorecake12-dotcom/lucy-ai.git
    cd lucy-ai
    ```
 
 2. **Run setup**:
-   Double-click `setup.bat` or run:
-   ```cmd
-   setup.bat
-   ```
-   * On first run, `setup.bat` automatically provisions a dedicated portable Python 3.11 runtime, installs required dependencies, compiles the native `LUCY.exe` launcher, and starts the assistant.
-   * On subsequent launches, launch LUCY instantly via `LUCY.exe` or `setup.bat`.
+   Double-click `setup.bat` in the folder.
+   * `setup.bat` installs LUCY into `%LOCALAPPDATA%\LUCY`.
+   * Automatically provisions a portable Python 3.11 runtime and dependencies.
+   * Compiles the native launcher `LUCY.exe` directly inside the installation directory.
+   * Generates native **Desktop** and **Start Menu** shortcuts.
+   * On future launches, launch LUCY directly from your Desktop shortcut or `setup.bat`.
+
 
 ---
 
@@ -190,11 +192,12 @@ LUCY stores runtime configuration inside `config/api_keys.json` (auto-created on
 {
     "gemini_api_key": "YOUR_GEMINI_API_KEY",
     "assistant_name": "LUCY",
-    "user_name": "boss",
-    "voice_name": "Puck",
-    "ui_color": "#00ff27",
+    "user_name": "",
+    "voice_name": "Charon",
+    "ui_color": "#8b5cf6",
+    "personality_mode": "GF",
     "hud_style": "face",
-    "wake_word_enabled": true
+    "wake_word_enabled": false
 }
 ```
 

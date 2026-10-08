@@ -510,13 +510,24 @@ class HoloAvatar:
         if self._wireframe_pm is not None and not self._wireframe_pm.isNull():
             return True
 
-        asset_path = Path(__file__).resolve().parent / "lucy_face_wireframe.png"
-        if not asset_path.exists():
-            fallback = Path(r"C:\Users\ACER\Downloads\lucy_face_wireframe.png")
-            if fallback.exists():
-                asset_path = fallback
-            else:
-                return False
+        candidates = [
+            Path(__file__).resolve().parent / "lucy_face_wireframe.png",
+            Path(__file__).resolve().parent / "lucy_face_wireframe.jpg",
+            Path(__file__).resolve().parent.parent / "assets" / "face.png",
+            Path(__file__).resolve().parent.parent / "assets" / "face.jpg",
+            Path(__file__).resolve().parent.parent / "assets" / "lucy_face_wireframe.png",
+            Path(__file__).resolve().parent.parent / "assets" / "lucy_face_wireframe.jpg",
+            Path(__file__).resolve().parent.parent / "face.png",
+            Path(__file__).resolve().parent.parent / "face.jpg",
+            Path(r"C:\Users\ACER\Downloads\lucy_face_wireframe.png"),
+        ]
+        asset_path = None
+        for cand in candidates:
+            if cand.exists():
+                asset_path = cand
+                break
+        if asset_path is None:
+            return False
 
         try:
             from PIL import Image

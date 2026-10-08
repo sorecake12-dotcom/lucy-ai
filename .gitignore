@@ -59,3 +59,8 @@ screenshots/
 # ── Local Documentation ───────────────────────────────────────────────────────
 DOCES/
 
+# ── Agents, IDE metadata & shortcuts ──────────────────────────────────────────
+.freebuff/
+.agents/
+*.lnk
+tools/

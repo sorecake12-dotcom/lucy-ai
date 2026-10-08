@@ -38,6 +38,11 @@ try:
 except Exception:      # pragma: no cover — HUD must never die over cosmetics
     HoloAvatar = None
 
+try:
+    from core.particle_blob import ParticleBlob
+except Exception:
+    ParticleBlob = None
+
 
 def _base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -102,7 +107,7 @@ _HUE_LINKED = (
 )
 _PALETTE_DEFAULTS: dict[str, str] = {k: getattr(C, k) for k in _HUE_LINKED}
 
-DEFAULT_UI_COLOR = _PALETTE_DEFAULTS["PRI"]
+DEFAULT_UI_COLOR = "#8b5cf6"
 
 
 # ── SVG Icon System (HUD / Cyber aesthetic) ──────────────────────────────────
@@ -444,6 +449,9 @@ class _SysMetrics:
 
 _metrics = _SysMetrics()
 
+
+
+
 class HudCanvas(QWidget):
     def __init__(self, face_path: str, assistant_name: str = "LUCY", parent=None):
         super().__init__(parent)
@@ -474,6 +482,14 @@ class HudCanvas(QWidget):
         except Exception:
             self.hud_style = "face"
         self._core_phase = 0.0
+
+        # ── Particle Blob mode (hud_style == 'blob') ─────────────────────
+        self._blob = None
+        if ParticleBlob is not None:
+            try:
+                self._blob = ParticleBlob()
+            except Exception:
+                self._blob = None
 
         self._tick       = 0
         self._scale      = 1.0
@@ -600,6 +616,8 @@ class HudCanvas(QWidget):
         gp.end()
         return pm
 
+
+
     def _step(self):
         self._tick += 1
         now = time.time()
@@ -648,7 +666,11 @@ class HudCanvas(QWidget):
         # starts talking. Same lesson the head's sway taught.
         self._core_phase += min(0.10, max(0.0, dt))
 
-        if self._avatar is not None and self.hud_style == "face":
+        if self.hud_style == "blob":
+            if self._blob is not None:
+                self._blob.step(dt, amp, speaking=self.speaking,
+                                muted=self.muted, state=self.state)
+        elif self._avatar is not None and self.hud_style == "face":
             self._avatar.step(dt, amp, speaking=self.speaking,
                               muted=self.muted, state=self.state,
                               v_open=v_open, v_wide=v_wide or 0.0,
@@ -905,33 +927,42 @@ class HudCanvas(QWidget):
         # capped by width, so it fills the HUD at any window size — including
         # fullscreen — without ever colliding with the status text below.
         _sy_status = cy + fw * 0.40
-        if self._avatar is not None and self.hud_style == "face":
-            _band_t = 12.0
-            _band_h = max(60.0, _sy_status - 12.0 - _band_t)
-            _r_head = min(fw * 0.355, _band_h / (self._avatar.SPAN + 0.08))
-            _head_cy = _band_t + (_band_h - self._avatar.SPAN * _r_head) / 2.0 + _r_head
+        _band_t = 12.0
+        _band_h = max(60.0, _sy_status - 12.0 - _band_t)
 
-            if self.muted:
-                _main = _acc = qcol(C.MUTED_C)
-            else:
-                _main = qcol(C.PRI)
-                if self.speaking:
-                    _acc = qcol(C.ACC)
-                elif self.state in ("THINKING", "PROCESSING"):
-                    _acc = qcol(C.ACC2)
-                elif self.state == "LISTENING":
-                    _acc = qcol(C.GREEN)
-                else:
-                    _acc = qcol(C.PRI)
-            self._avatar.paint(p, cx, _head_cy, _r_head, _main, _acc, qcol(C.BG))
-
-        # reactor core — the other centrepiece, and the fallback if the head
-        # could not be built. There is no third path: the old face.png branch
-        # was unreachable (no such file ships) and the bare orb it fell through
-        # to is what this replaces.
+        if self.muted:
+            _main = _acc = qcol(C.MUTED_C)
         else:
-            _band_t = 12.0
-            _band_h = max(60.0, _sy_status - 12.0 - _band_t)
+            _main = qcol(C.PRI)
+            if self.speaking:
+                _acc = qcol(C.ACC)
+            elif self.state in ("THINKING", "PROCESSING"):
+                _acc = qcol(C.ACC2)
+            elif self.state == "LISTENING":
+                _acc = qcol(C.GREEN)
+            else:
+                _acc = qcol(C.PRI)
+
+        if self._blob is not None and self.hud_style == "blob":
+            _r_blob = min(fw * 0.34, _band_h * 0.46)
+            # Centre the blob in the visual container's actual bounds (this
+            # widget's rect: cx, cy = its true centre, recomputed every paint
+            # so resize/maximise keep it dead-centre). The old band-based
+            # offset left it above centre because the band stops at the
+            # status line instead of the container's bottom edge.
+            _blob_cy = cy
+            self._blob.paint(p, cx, _blob_cy, _r_blob, _main, _acc, qcol(C.BG))
+        elif self._avatar is not None and self.hud_style == "face":
+            _r_head = min(fw * 0.355, _band_h / (self._avatar.SPAN + 0.08))
+            # The wireframe graphic draws symmetrically around this point, so
+            # the container's true centre puts it precisely centred both ways.
+            # The old SPAN-based offset centred a differently-sized box inside
+            # the band, leaving the face high off-centre. Size is unchanged:
+            # _r_head still comes from the band as before.
+            _head_cy = cy
+            self._avatar.paint(p, cx, _head_cy, _r_head, _main, _acc, qcol(C.BG))
+        else:
+            # reactor core — the centerpiece for "core" or fallback
             _r = min(W * 0.46, _band_h / 2.0)
             self._paint_core(p, cx, _band_t + _band_h / 2.0, _r, W, _band_h)
 
@@ -1551,7 +1582,7 @@ class CustomizeOverlay(QWidget):
         self._wheel.hue_committed.connect(self._on_wheel_commit)
 
         self._hex_input = QLineEdit(self._sel_color)
-        self._hex_input.setPlaceholderText("#00d4ff   (custom hex colour)")
+        self._hex_input.setPlaceholderText("#8b5cf6   (custom hex colour)")
         self._hex_input.setFont(QFont("Courier New", 10))
         self._hex_input.setFixedHeight(28)
         self._hex_input.setStyleSheet(_fs)
@@ -3165,8 +3196,8 @@ class MainWindow(QMainWindow):
         _display = self._assistant_name.upper()
 
         # Apply the saved UI colour BEFORE panels/stylesheets are built
-        _ui_color = (_cfg.get("ui_color") or "").strip()
-        if _ui_color and _ui_color.lower() != DEFAULT_UI_COLOR:
+        _ui_color = (_cfg.get("ui_color") or DEFAULT_UI_COLOR).strip()
+        if _ui_color:
             apply_ui_accent(_ui_color)
 
         self.setWindowTitle(f"{_display} — {APP_VERSION}")
@@ -4926,31 +4957,34 @@ class MainWindow(QMainWindow):
 
     def _refresh_hud_btn(self):
         from memory.config_manager import get_hud_style
-        face = get_hud_style() == "face"
-        # Neither state is "off", so both read as active — this is a choice
-        # between two things, not a switch with a disabled side.
+        style_cur = get_hud_style()
         style = f"""
             QPushButton {{ background: {C.PANEL2}; color: {C.PRI};
                 border: 1px solid {C.BORDER_A}; border-radius: 3px;
                 text-align: left; padding: 0 8px; }}
             QPushButton:hover {{ color: {C.WHITE}; border: 1px solid {C.BORDER_B}; }}"""
-        if face:
+        if style_cur == "face":
             _set_btn_icon(self._hud_btn, "face", "  HUD: WIREFRAME FACE", C.PRI, 12)
-        else:
+        elif style_cur == "core":
             _set_btn_icon(self._hud_btn, "reactor", "  HUD: REACTOR CORE", C.PRI, 12)
+        else:
+            _set_btn_icon(self._hud_btn, "face", "  HUD: PARTICLE BLOB", C.PRI, 12)
         self._hud_btn.setStyleSheet(style)
         self._hud_btn.setToolTip(
-            "A holographic wireframe face that speaks your words and shows what LUCY is "
-            "doing. Tap to switch to the reactor core."
-            if face else
+            "LUCY's holographic wireframe face. Tap to switch to the reactor core."
+            if style_cur == "face" else
             "A reactor core that turns with the state and moves with your voice. "
+            "Tap to switch to the particle blob."
+            if style_cur == "core" else
+            "A living 3D particle sphere that pulses and deforms with LUCY's state. "
             "Tap to switch to the wireframe face.")
 
     def _toggle_hud_style(self):
-        """Swap the centrepiece. Both objects stay in memory, so the change is
-        instant and switching back costs nothing."""
+        """Cycle the centrepiece: wireframe face → reactor core → particle blob → wireframe face."""
         from memory.config_manager import get_hud_style, save_hud_style
-        want = "core" if get_hud_style() == "face" else "face"
+        order = ("face", "core", "blob")
+        cur = get_hud_style()
+        want = order[(order.index(cur) + 1) % len(order)] if cur in order else "face"
         save_hud_style(want)
         try:
             self.hud.hud_style = want
@@ -4958,9 +4992,12 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
         self._refresh_hud_btn()
-        self._log.append_log(
-            "SYS: HUD switched to the wireframe face." if want == "face"
-            else "SYS: HUD switched to the reactor core.")
+        msg = {
+            "face": "SYS: HUD switched to the wireframe face.",
+            "core": "SYS: HUD switched to the reactor core.",
+            "blob": "SYS: HUD switched to the particle blob.",
+        }
+        self._log.append_log(msg.get(want, msg["face"]))
 
     def _refresh_personality_btns(self):
         from memory.config_manager import get_personality_mode

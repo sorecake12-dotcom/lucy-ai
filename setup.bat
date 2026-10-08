@@ -2,146 +2,156 @@
 setlocal enabledelayedexpansion
 
 :: -----------------------------------------------------------------------------
-:: LUCY DESKTOP ASSISTANT - LAUNCHER & SETUP
-:: Works on Windows 10 & 11 (64-bit). No Python installation required.
+:: LUCY DESKTOP ASSISTANT - INSTALLER, SETUP & LAUNCHER
+:: Target Installation Directory: %LOCALAPPDATA%\LUCY
 :: -----------------------------------------------------------------------------
 
 title LUCY Setup & Launcher
 
-:: Resolve absolute directory where setup.bat lives
-set "APP_DIR=%~dp0"
-if "%APP_DIR:~-1%"=="\" set "APP_DIR=%APP_DIR:~0,-1%"
-cd /d "%APP_DIR%"
+set "SRC_DIR=%~dp0"
+if "%SRC_DIR:~-1%"=="\" set "SRC_DIR=%SRC_DIR:~0,-1%"
 
-:: Ensure logs folder exists
-if not exist "%APP_DIR%\logs" mkdir "%APP_DIR%\logs"
-set "LOG_FILE=%APP_DIR%\logs\setup.log"
+set "INSTALL_DIR=%LOCALAPPDATA%\LUCY"
+if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+if not exist "%INSTALL_DIR%\logs" mkdir "%INSTALL_DIR%\logs"
+set "LOG_FILE=%INSTALL_DIR%\logs\setup.log"
 
-:: Fast Path: Check if runtime is already prepared and functional
-if exist "%APP_DIR%\runtime\python.exe" (
-    :: Quick verification of core package
-    "%APP_DIR%\runtime\python.exe" -c "import PyQt6" >nul 2>&1
-    if !errorlevel! equ 0 (
-        echo [%date% %time%] Fast launch initiated >> "%LOG_FILE%"
-        if exist "%APP_DIR%\LUCY.exe" (
-            start "" "%APP_DIR%\LUCY.exe"
-        ) else (
-            start "" "%APP_DIR%\runtime\python.exe" "%APP_DIR%\main.py"
-        )
-        exit /b 0
+echo ==================================================
+echo                  LUCY ASSISTANT
+echo ==================================================
+echo.
+
+:: 1. Synchronize source files to %INSTALL_DIR% if run from release/download folder
+if /i not "%SRC_DIR%"=="%INSTALL_DIR%" (
+    echo [%date% %time%] Syncing application files from "%SRC_DIR%" to "%INSTALL_DIR%" >> "%LOG_FILE%"
+    robocopy "%SRC_DIR%" "%INSTALL_DIR%" /E /XD .git .github .freebuff __pycache__ runtime logs /XF *.pyc *.log *.tmp LUCY.exe LUCY.lnk face.png setup.log /R:1 /W:1 /NJH /NJS /NDL /NC /NS >nul 2>&1
+    if !errorlevel! geq 8 (
+        echo [WARNING] File sync encountered warnings. Continuing setup... >> "%LOG_FILE%"
     )
 )
 
-:: -----------------------------------------------------------------------------
-:: First Run Setup Flow
-:: -----------------------------------------------------------------------------
+:: 2. Fast Path: If runtime and dependencies are already functional
+if exist "%INSTALL_DIR%\runtime\python.exe" (
+    "%INSTALL_DIR%\runtime\python.exe" -c "import PyQt6" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [%date% %time%] Fast launch initiated >> "%LOG_FILE%"
+        goto :LAUNCH
+    )
+)
+
+:: 3. Provision Portable Runtime
 cls
 echo ==================================================
-echo                   LUCY SETUP
+echo                 LUCY SETUP
 echo ==================================================
 echo.
-echo [%date% %time%] First-time setup initiated in "%APP_DIR%" >> "%LOG_FILE%"
-
 echo Checking runtime...
-echo [%date% %time%] Checking runtime... >> "%LOG_FILE%"
+echo [%date% %time%] Setting up portable runtime in "%INSTALL_DIR%" >> "%LOG_FILE%"
 
-:: If runtime directory is missing, provision it automatically
-if not exist "%APP_DIR%\runtime\python.exe" (
-    echo Preparing LUCY components...
-    echo [%date% %time%] Local runtime missing. Provisioning portable Python 3.11... >> "%LOG_FILE%"
-
-    :: Check if curl and tar are available (native on Win 10/11)
+if not exist "%INSTALL_DIR%\runtime\python.exe" (
+    echo Preparing portable Python runtime...
     where curl >nul 2>&1
     if !errorlevel! neq 0 (
-        echo.
-        echo [ERROR] curl.exe is required for automatic download on first run.
+        echo [ERROR] curl.exe is required for first-run setup.
         echo Please ensure Windows 10/11 is updated.
-        echo [%date% %time%] curl.exe not found >> "%LOG_FILE%"
+        echo [%date% %time%] curl.exe missing >> "%LOG_FILE%"
         goto :FAIL
     )
 
     set "STANDALONE_URL=https://github.com/astral-sh/python-build-standalone/releases/download/20240814/cpython-3.11.9+20240814-x86_64-pc-windows-msvc-shared-install_only.tar.gz"
     set "PKG_TMP=%TEMP%\lucy_python_311.tar.gz"
 
-    echo Downloading portable Python runtime (one-time setup)...
+    echo Downloading Python runtime (one-time download)...
     curl -L -s --fail "!STANDALONE_URL!" -o "!PKG_TMP!"
     if !errorlevel! neq 0 (
-        echo [ERROR] Failed to download portable Python runtime.
+        echo [ERROR] Failed to download runtime package.
         echo Please check your internet connection and try again.
-        echo [%date% %time%] Failed to download runtime from !STANDALONE_URL! >> "%LOG_FILE%"
+        echo [%date% %time%] Failed download from !STANDALONE_URL! >> "%LOG_FILE%"
         goto :FAIL
     )
 
     echo Extracting runtime...
-    if not exist "%APP_DIR%\runtime" mkdir "%APP_DIR%\runtime"
-    tar -xzf "!PKG_TMP!" -C "%APP_DIR%\runtime" --strip-components=1
+    if not exist "%INSTALL_DIR%\runtime" mkdir "%INSTALL_DIR%\runtime"
+    tar -xzf "!PKG_TMP!" -C "%INSTALL_DIR%\runtime" --strip-components=1
     del /f /q "!PKG_TMP!" >nul 2>&1
 
-    if not exist "%APP_DIR%\runtime\python.exe" (
+    if not exist "%INSTALL_DIR%\runtime\python.exe" (
         echo [ERROR] Runtime extraction failed.
-        echo [%date% %time%] runtime\python.exe missing after tar extraction >> "%LOG_FILE%"
+        echo [%date% %time%] python.exe missing after extraction >> "%LOG_FILE%"
         goto :FAIL
     )
-    echo [%date% %time%] Standalone runtime extraction complete. >> "%LOG_FILE%"
 
-    :: Remove EXTERNALLY-MANAGED marker so pip installs cleanly
-    if exist "%APP_DIR%\runtime\Lib\EXTERNALLY-MANAGED" (
-        del /f /q "%APP_DIR%\runtime\Lib\EXTERNALLY-MANAGED" >nul 2>&1
-        echo [%date% %time%] Removed EXTERNALLY-MANAGED marker >> "%LOG_FILE%"
+    if exist "%INSTALL_DIR%\runtime\Lib\EXTERNALLY-MANAGED" (
+        del /f /q "%INSTALL_DIR%\runtime\Lib\EXTERNALLY-MANAGED" >nul 2>&1
     )
 )
 
-:: Checking dependencies
+:: 4. Install Dependencies
 echo Checking dependencies...
-echo [%date% %time%] Checking dependencies... >> "%LOG_FILE%"
-
-"%APP_DIR%\runtime\python.exe" -c "import PyQt6" >nul 2>&1
+"%INSTALL_DIR%\runtime\python.exe" -c "import PyQt6" >nul 2>&1
 if !errorlevel! neq 0 (
-    echo Installing required components (one-time setup, may take a few minutes)...
-    echo [%date% %time%] Installing packages from requirements.txt... >> "%LOG_FILE%"
-    "%APP_DIR%\runtime\python.exe" -m pip install --break-system-packages -r "%APP_DIR%\requirements.txt" >> "%LOG_FILE%" 2>&1
+    echo Installing application dependencies (one-time setup)...
+    echo [%date% %time%] Installing requirements.txt >> "%LOG_FILE%"
+    "%INSTALL_DIR%\runtime\python.exe" -m pip install --break-system-packages -r "%INSTALL_DIR%\requirements.txt" >> "%LOG_FILE%" 2>&1
     if !errorlevel! neq 0 (
-        echo [ERROR] Failed to install application dependencies.
-        echo Please inspect logs\setup.log for details.
+        echo [ERROR] Dependency installation failed. Check "%LOG_FILE%".
         echo [%date% %time%] pip install failed with code !errorlevel! >> "%LOG_FILE%"
         goto :FAIL
     )
 )
 
-:: Verify critical files
-echo Validating installation...
-if not exist "%APP_DIR%\main.py" (
-    echo [ERROR] main.py is missing from %APP_DIR%.
-    echo [%date% %time%] main.py missing >> "%LOG_FILE%"
-    goto :FAIL
-)
-
-"%APP_DIR%\runtime\python.exe" -c "import main" >nul 2>&1
-if !errorlevel! neq 0 (
-    echo [WARNING] Dependency validation returned non-zero. See setup.log.
-    echo [%date% %time%] import main check non-zero >> "%LOG_FILE%"
-)
-
-:: Build native launcher executable if missing
-if not exist "%APP_DIR%\LUCY.exe" (
-    if exist "%APP_DIR%\launcher\LUCY_launcher.cs" (
+:: 5. Compile Native Launcher
+:BUILD_LAUNCHER
+if not exist "%INSTALL_DIR%\LUCY.exe" (
+    if exist "%INSTALL_DIR%\launcher\LUCY_launcher.cs" (
         set "CSC_EXE=%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
         if not exist "!CSC_EXE!" set "CSC_EXE=%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
         if exist "!CSC_EXE!" (
-            echo Building launcher...
-            echo [%date% %time%] Compiling LUCY.exe via csc.exe >> "%LOG_FILE%"
-            "!CSC_EXE!" /nologo /target:winexe /win32icon:"%APP_DIR%\config\logo.ico" /out:"%APP_DIR%\LUCY.exe" "%APP_DIR%\launcher\LUCY_launcher.cs" >> "%LOG_FILE%" 2>&1
+            echo Building native launcher...
+            echo [%date% %time%] Compiling LUCY.exe into %INSTALL_DIR% >> "%LOG_FILE%"
+            set "ICON_ARG="
+            if exist "%INSTALL_DIR%\config\logo.ico" (
+                set "ICON_ARG=/win32icon:\"%INSTALL_DIR%\config\logo.ico\""
+            ) else if exist "%INSTALL_DIR%\config\jarvis.ico" (
+                set "ICON_ARG=/win32icon:\"%INSTALL_DIR%\config\jarvis.ico\""
+            )
+            "!CSC_EXE!" /nologo /target:winexe !ICON_ARG! /out:"%INSTALL_DIR%\LUCY.exe" "%INSTALL_DIR%\launcher\LUCY_launcher.cs" >> "%LOG_FILE%" 2>&1
         )
     )
 )
 
+:: 6. Create Desktop and Start Menu Shortcuts
+echo Creating shortcuts...
+powershell -NoProfile -NonInteractive -Command ^
+    "$ws = New-Object -ComObject WScript.Shell; " ^
+    "$exe = '%INSTALL_DIR%\LUCY.exe'; " ^
+    "if (-not (Test-Path $exe)) { $exe = '%INSTALL_DIR%\runtime\pythonw.exe'; $args = '\"%INSTALL_DIR%\main.py\"' } else { $args = '' }; " ^
+    "$ico = '%INSTALL_DIR%\config\logo.ico'; " ^
+    "if (-not (Test-Path $ico)) { $ico = '%INSTALL_DIR%\config\jarvis.ico' }; " ^
+    "$paths = @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('CommonDesktopDirectory'), \"$env:APPDATA\Microsoft\Windows\Start Menu\Programs\"); " ^
+    "foreach ($p in $paths) { " ^
+    "    if (Test-Path $p) { " ^
+    "        $lnk = $ws.CreateShortcut(\"$p\LUCY.lnk\"); " ^
+    "        $lnk.TargetPath = $exe; " ^
+    "        if ($args) { $lnk.Arguments = $args }; " ^
+    "        $lnk.WorkingDirectory = '%INSTALL_DIR%'; " ^
+    "        $lnk.Description = 'LUCY AI Assistant'; " ^
+    "        if (Test-Path $ico) { $lnk.IconLocation = $ico }; " ^
+    "        $lnk.Save(); " ^
+    "    } " ^
+    "}" >nul 2>&1
+
+:: 7. Launch LUCY
+:LAUNCH
 echo Starting LUCY...
 echo [%date% %time%] Launching LUCY application >> "%LOG_FILE%"
 
-if exist "%APP_DIR%\LUCY.exe" (
-    start "" "%APP_DIR%\LUCY.exe"
+if exist "%INSTALL_DIR%\LUCY.exe" (
+    start "" "%INSTALL_DIR%\LUCY.exe"
+) else if exist "%INSTALL_DIR%\runtime\pythonw.exe" (
+    start "" "%INSTALL_DIR%\runtime\pythonw.exe" "%INSTALL_DIR%\main.py"
 ) else (
-    start "" "%APP_DIR%\runtime\python.exe" "%APP_DIR%\main.py"
+    start "" "%INSTALL_DIR%\runtime\python.exe" "%INSTALL_DIR%\main.py"
 )
 
 exit /b 0
@@ -149,12 +159,10 @@ exit /b 0
 :FAIL
 echo.
 echo ==================================================
-echo LUCY could not start.
+echo LUCY setup could not complete.
 echo.
-echo Possible cause:
-echo A required component or network resource was missing.
-echo.
-echo Please review "%LOG_FILE%" for details.
+echo Review log file for details:
+echo %LOG_FILE%
 echo ==================================================
 echo.
 pause
