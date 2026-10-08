@@ -265,9 +265,19 @@ def _nvml_gpu_windows() -> float:
             _fields_ = [("gpu", ctypes.c_uint), ("memory", ctypes.c_uint)]
 
         if _nvml_lib is None:
-            for dll_name in ("nvml", r"C:\Windows\System32\nvml.dll"):
+            if _OS == "Windows":
+                candidates = ("nvml", r"C:\Windows\System32\nvml.dll")
+                _load = getattr(ctypes, "WinDLL", ctypes.CDLL)
+            else:
+                candidates = (
+                    "libnvidia-ml.so.1",
+                    "libnvidia-ml.so",
+                    "libnvidia-ml.dylib",
+                )
+                _load = ctypes.CDLL
+            for dll_name in candidates:
                 try:
-                    lib = ctypes.WinDLL(dll_name)
+                    lib = _load(dll_name)
                     lib.nvmlInit_v2()
                     _nvml_lib = lib
                     break

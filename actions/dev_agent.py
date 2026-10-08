@@ -280,16 +280,38 @@ def _install_dependencies(dependencies: list[str], project_dir: Path) -> str:
         return f"Install error (non-fatal): {e}"
 
 def _open_vscode(project_dir: Path) -> bool:
-    vscode_candidates = [
-        "code",
-        rf"C:\Users\{Path.home().name}\AppData\Local\Programs\Microsoft VS Code\bin\code.cmd",
-        r"C:\Program Files\Microsoft VS Code\bin\code.cmd",
-    ]
+    import shutil
+    code_bin = shutil.which("code")
+    vscode_candidates = []
+    if code_bin:
+        vscode_candidates.append(code_bin)
+    if platform.system() == "Windows":
+        local_app = os.environ.get("LOCALAPPDATA", "")
+        if local_app:
+            vscode_candidates.append(str(Path(local_app) / "Programs" / "Microsoft VS Code" / "bin" / "code.cmd"))
+        prog = os.environ.get("PROGRAMFILES", "")
+        if prog:
+            vscode_candidates.append(str(Path(prog) / "Microsoft VS Code" / "bin" / "code.cmd"))
+    elif platform.system() == "Darwin":
+        vscode_candidates.extend([
+            "/usr/local/bin/code",
+            "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+        ])
+    else:
+        vscode_candidates.extend([
+            "/usr/bin/code",
+            "/usr/local/bin/code",
+            "/snap/bin/code",
+        ])
+
     for cmd in vscode_candidates:
+        if not Path(cmd).exists() and not shutil.which(cmd):
+            continue
         try:
+            is_win = platform.system() == "Windows"
             subprocess.Popen(
                 [cmd, str(project_dir)],
-                shell=True,
+                shell=is_win,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )

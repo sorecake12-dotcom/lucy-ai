@@ -101,15 +101,15 @@ def _box_surface(points, groups, group, cx, cy, cz, hx, hy, hz, n, rng,
                  skip_bottom=False):
     """Even sampling over the 6 faces of a box (optionally without the bottom)."""
     faces = 5 if skip_bottom else 6
-    per = max(1, n // faces)
-    for _ in range(per):
+    for _ in range(n):
         u, v = rng.uniform(-1, 1), rng.uniform(-1, 1)
         face = rng.randrange(faces)
         if face == 0:   p = (cx + hx, cy + hy * u, cz + hz * v)
         elif face == 1: p = (cx - hx, cy + hy * u, cz + hz * v)
         elif face == 2: p = (cx + hx * u, cy + hy, cz + hz * v)
         elif face == 3: p = (cx + hx * u, cy - hy, cz + hz * v)
-        else:           p = (cx + hx * u, cy + hy * v, cz + hz)
+        elif face == 4: p = (cx + hx * u, cy + hy * v, cz + hz)
+        else:           p = (cx + hx * u, cy + hy * v, cz - hz)
         points.append(p)
         groups.append(group)
 

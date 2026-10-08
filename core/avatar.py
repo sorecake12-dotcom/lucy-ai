@@ -519,7 +519,6 @@ class HoloAvatar:
             Path(__file__).resolve().parent.parent / "assets" / "lucy_face_wireframe.jpg",
             Path(__file__).resolve().parent.parent / "face.png",
             Path(__file__).resolve().parent.parent / "face.jpg",
-            Path(r"C:\Users\ACER\Downloads\lucy_face_wireframe.png"),
         ]
         asset_path = None
         for cand in candidates:
