@@ -5,6 +5,8 @@
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $baseDir
 
+Write-Host "[LUCY] Launching Assistant..." -ForegroundColor Cyan
+
 # 1. Unblock local files
 Get-ChildItem -Path $baseDir -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 
@@ -39,5 +41,6 @@ if (-not $py) {
     exit 1
 }
 
-# 3. Launch main.py
+Write-Host "[LUCY] Starting main.py using $py..." -ForegroundColor Green
 Start-Process -FilePath $py -ArgumentList (Join-Path $baseDir "main.py") -WorkingDirectory $baseDir
+Write-Host "[LUCY] Online! UI window opened." -ForegroundColor Cyan
