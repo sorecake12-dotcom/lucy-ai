@@ -2248,7 +2248,7 @@ class JarvisLive:
 
         while True:
             try:
-                print("[JARVIS] Connecting...")
+                print(f"[{self.assistant_name}] Connecting...")
                 self.ui.set_state("THINKING")
                 _resumed_with = self._resume_handle is not None
                 config = self._build_config()
@@ -2402,7 +2402,7 @@ class JarvisLive:
                     self.ui.prompt_reconfig()
                     while not self.ui._win._ready:
                         await asyncio.sleep(1)
-                    print("[JARVIS] New API key saved — reconnecting...")
+                    print(f"[{self.assistant_name}] New API key saved — reconnecting...")
                     self._conn_backoff = 3
                     continue
 
