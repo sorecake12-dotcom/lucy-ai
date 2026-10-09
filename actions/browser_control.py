@@ -970,6 +970,21 @@ def browser_control(
     browser = params.get("browser", "").lower().strip() or None
     result  = "Unknown action."
 
+    from core.api_guard import get_guard, redact_secrets
+    guard = get_guard()
+    try:
+        guard.assert_api_allowed("Browser Action")
+    except Exception as e:
+        return f"Browser action blocked: {e}"
+
+    ok, loop_err = guard.loop_guard.record_and_check("browser_control", params)
+    if not ok:
+        print(f"[Browser] ⚠️ {loop_err}")
+        return loop_err
+
+    if not guard.browser_limiter.acquire(block=True, timeout=10.0):
+        return "Browser action rate limit reached — please wait a moment."
+
     if action == "switch":
         target = browser or params.get("target", "").lower().strip()
         result = _registry.switch(target) if target else "Please specify a browser."

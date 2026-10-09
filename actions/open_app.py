@@ -239,9 +239,15 @@ def open_app(
     session_memory=None,
 ) -> str:
     app_name = (parameters or {}).get("app_name", "").strip()
+    mode = (parameters or {}).get("mode", "open").lower().strip()
 
     if not app_name:
         return "No application name provided."
+
+    if mode in ("close", "quit", "terminate", "stop"):
+        from core.self_healing_control import SelfHealingController
+        ok, msg = SelfHealingController.close_application_safe(app_name)
+        return msg
 
     launcher = _OS_LAUNCHERS.get(_SYSTEM)
     if launcher is None:

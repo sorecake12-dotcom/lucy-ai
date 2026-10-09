@@ -1047,13 +1047,8 @@ class JarvisLive:
         mem_str    = format_memory_for_prompt(memory)
         sys_prompt = _load_system_prompt()
 
-        now      = datetime.now()
-        time_str = now.strftime("%A, %B %d, %Y — %I:%M %p")
-        time_ctx = (
-            f"[CURRENT DATE & TIME]\n"
-            f"Right now it is: {time_str}\n"
-            f"Use this to calculate exact times for reminders.\n\n"
-        )
+        from core.geo_time import get_realtime_prompt_context
+        time_ctx = get_realtime_prompt_context()
 
         p_mode = get_personality_mode()
         # Identity injection — overrides any hardcoded name in prompt.txt

@@ -26,6 +26,8 @@ from typing import Callable, Generator
 
 import requests
 
+from core.api_guard import get_guard, redact_secrets
+
 # Matches a sentence boundary: [.!?] followed by whitespace, or a blank line.
 # Avoids splitting on decimals (3.5) because those have no space after the dot.
 _SENT_END = re.compile(r'(?<=[.!?])\s+|(?<=\n)\s*\n')
@@ -237,6 +239,11 @@ def call_llm(
     Returns:
         {"content": str, "tool_calls": list}
     """
+    guard = get_guard()
+    guard.assert_api_allowed(f"Local LLM")
+    if not guard.llm_limiter.acquire(block=True, timeout=10.0):
+        raise RuntimeError("LLM rate limit reached — please slow down.")
+
     url, model = get_llm_settings()
     provider   = get_llm_provider()
 
@@ -338,6 +345,13 @@ def call_llm_text(
     Simple text-only generation (no tools).
     Used by planner, executor, error_handler, code_helper, dev_agent.
     """
+    guard = get_guard()
+    guard.assert_api_allowed("Local LLM text")
+    if not guard.llm_limiter.acquire(block=True, timeout=10.0):
+        raise RuntimeError("LLM rate limit reached — please slow down.")
+
+    prompt = guard.validate_input_size(prompt)
+
     url, default_model = get_llm_settings()
     endpoint = f"{url}/api/chat"
     m        = model or default_model

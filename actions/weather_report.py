@@ -10,10 +10,11 @@ def weather_action(
     city     = parameters.get("city")
     when     = parameters.get("time", "today")  
 
-    if not city or not isinstance(city, str) or not city.strip():
-        msg = "Sir, the city is missing for the weather report."
-        _log(msg, player)
-        return msg
+    if not city or not isinstance(city, str) or not city.strip() or city.strip().lower() in ("here", "current", "local", "my city", "current location"):
+        from core.geo_time import get_location_info
+        loc = get_location_info()
+        city = loc.get("city") or "New Delhi"
+        print(f"[Weather] Resolved local city to: {city} ({loc.get('source')})")
 
     city = city.strip()
     when = (when or "today").strip()

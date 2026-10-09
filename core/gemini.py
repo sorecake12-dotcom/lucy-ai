@@ -71,6 +71,8 @@ import time
 import threading
 from pathlib import Path
 
+from core.api_guard import get_guard, redact_secrets
+
 if getattr(sys, "frozen", False):
     _BASE = Path(sys.executable).parent
 else:
@@ -335,6 +337,9 @@ def _live_call(contents, config, timeout_ms: int, key: str):
     if not parts:
         return None
 
+    guard = get_guard()
+    guard.assert_api_allowed("Gemini Live")
+
     if not _LIVE_SLOTS.acquire(timeout=_LIVE_SLOT_WAIT):
         # Every slot is busy. Do not wait it out: falling to REST costs less
         # than holding a session the user's conversation might want.
@@ -358,6 +363,8 @@ def _live_call(contents, config, timeout_ms: int, key: str):
     if "error" in box:
         raise box["error"]
     text = box.get("text")
+    if text:
+        guard.quota_tracker.record_usage(requests_count=1)
     return _Reply(text) if text else None
 
 
@@ -371,11 +378,18 @@ def call(contents, tier: str = FAST, config=None,
     a silent None during a session nobody can debug is how the original problem
     stayed hidden.
     """
-    # `tier` is normally FAST or SMART. Anything else is taken to be an explicit
-    # model name — screen_agent lets the user pick one in its settings — and it
-    # is tried first, with the reasoning ladder behind it. So a user's choice is
-    # honoured, and a user's choice that is having an outage still degrades to
-    # something that answers instead of to nothing.
+    guard = get_guard()
+    try:
+        guard.assert_api_allowed("Gemini API")
+    except Exception as e:
+        print(f"[Gemini] {e}")
+        return None
+
+    # Apply rate limiter
+    if not guard.gemini_limiter.acquire(block=True, timeout=10.0):
+        print("[Gemini] Rate limit reached — slowing down requests.")
+        return None
+
     ladder = _LADDERS.get(tier)
     if ladder is None:
         ladder = (tier,) + tuple(m for m in _LADDERS[SMART] if m != tier)
@@ -399,7 +413,9 @@ def call(contents, tier: str = FAST, config=None,
             kwargs = {"model": model, "contents": contents}
             if config is not None:
                 kwargs["config"] = config
-            return cl.models.generate_content(**kwargs)
+            res = cl.models.generate_content(**kwargs)
+            guard.quota_tracker.record_usage(requests_count=1)
+            return res
         except Exception as e:
             msg = str(e)
             if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
@@ -407,7 +423,7 @@ def call(contents, tier: str = FAST, config=None,
                 print(f"[Gemini] {model}: out of quota — skipping it for "
                       f"{_COOLDOWN_SECONDS // 60} minutes")
             else:
-                print(f"[Gemini] {model}: {type(e).__name__}: {msg[:140]}")
+                print(f"[Gemini] {model}: {type(e).__name__}: {redact_secrets(msg[:140])}")
     return None
 
 

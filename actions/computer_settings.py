@@ -244,8 +244,13 @@ def brightness_down():
             print(f"[Settings] Brightness down failed on Windows: {e}")
 
 def close_app():
-    if _OS == "Darwin": pyautogui.hotkey("command", "q")
-    else:               pyautogui.hotkey("alt", "f4")
+    from core.self_healing_control import SelfHealingController, WindowManager
+    active = WindowManager.get_active_window_title()
+    if active:
+        SelfHealingController.close_application_safe(active)
+    else:
+        if _OS == "Darwin": pyautogui.hotkey("command", "q")
+        else:               pyautogui.hotkey("alt", "f4")
 
 def close_window():
     if _OS == "Darwin": pyautogui.hotkey("command", "w")

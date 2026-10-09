@@ -447,3 +447,42 @@ def get_serious_limits() -> dict:
     for key, ceiling in _SERIOUS_LIMIT_CEILINGS.items():
         out[key] = max(1, min(int(out[key]), ceiling))
     return out
+
+
+# ── Location & Timezone Settings ─────────────────────────────────────────────
+def get_location_settings() -> dict:
+    """Return configured location mode and city preferences."""
+    raw = load_api_keys().get("location_settings", {})
+    if not isinstance(raw, dict):
+        raw = {}
+    return {
+        "mode": raw.get("mode", "auto"),
+        "fallback_city": raw.get("fallback_city", "New Delhi, India"),
+        "timezone": raw.get("timezone", "Asia/Kolkata")
+    }
+
+
+def save_location_settings(mode: str = "auto", fallback_city: str = "New Delhi, India", timezone: str = "Asia/Kolkata") -> None:
+    """Persist location preferences."""
+    _patch_config(location_settings={
+        "mode": str(mode or "auto").strip().lower(),
+        "fallback_city": str(fallback_city or "New Delhi, India").strip(),
+        "timezone": str(timezone or "Asia/Kolkata").strip()
+    })
+
+
+# ── Emergency API Kill Switch ───────────────────────────────────────────────
+def is_emergency_kill_switch_active() -> bool:
+    """Check if emergency API kill switch is active."""
+    return bool(load_api_keys().get("emergency_kill_switch", False))
+
+
+def set_emergency_kill_switch(active: bool) -> None:
+    """Toggle emergency API kill switch in config and in-memory guard."""
+    _save_flag("emergency_kill_switch", active)
+    try:
+        from core.api_guard import set_emergency_kill_switch as _guard_set
+        _guard_set(active)
+    except Exception:
+        pass
+

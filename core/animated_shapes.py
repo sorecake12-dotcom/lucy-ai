@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import random
+from pathlib import Path
 
 _TAU = 2.0 * math.pi
 
@@ -805,47 +806,644 @@ def build_human(n):
     return pts, grp
 
 
+# ── Sports Car Builder ──────────────────────────────────────────────────────
+
+def build_sports_car(n: int, rng=None):
+    """Aerodynamic GT sports-car: low wedge chassis, cockpit canopy, aggressive
+    rear spoiler wing, wide track wheels with brake disc hubs, and LED light clusters."""
+    rng = rng or random.Random(42)
+    pts: list = []
+    grp: list = []
+
+    # 1. Bodyshell (Group 0): low sleek wedge profile
+    n_body = int(n * 0.44)
+    for _ in range(n_body):
+        t = rng.uniform(-0.88, 0.82)  # length along X
+        # Width widens at rear flanks
+        w = 0.38 + 0.08 * (1.0 - t) if t < 0.2 else 0.42 - 0.08 * (t - 0.2)
+        # Height: ultra low nose (t>0.6), low hood, sloping trunk
+        if t > 0.6:
+            y = rng.uniform(-0.16, 0.04 - 0.12 * (t - 0.6))
+        elif t > 0.2:
+            y = rng.uniform(-0.16, 0.06)
+        elif t > -0.5:
+            y = rng.uniform(-0.16, 0.10)
+        else:
+            y = rng.uniform(-0.16, 0.12)
+        z = rng.uniform(-w, w)
+        # Keep shell hollow-ish surface
+        if abs(z) > w * 0.72 or y > 0.02 or y < -0.12:
+            pts.append((t, y, z))
+            grp.append(0)
+
+    # 2. Cockpit Canopy & Windows (Group 1): raked aerodynamic windshield & roof
+    n_cab = int(n * 0.16)
+    for _ in range(n_cab):
+        t = rng.uniform(-0.35, 0.32)
+        ft = (t - (-0.35)) / 0.67
+        # Cockpit roof height arches up to y=0.28
+        y_roof = 0.12 + 0.16 * math.sin(ft * math.pi)
+        y = rng.uniform(0.08, y_roof)
+        # Narrower greenhouse cabin
+        w = 0.26 * math.sin(ft * math.pi) * (1.0 - 0.3 * (y / y_roof))
+        z = rng.uniform(-w, w)
+        pts.append((t, y, z))
+        grp.append(1)
+
+    # 3. Racing Wheels (Group 2): 4 wide wheels with discs
+    n_wheels = int(n * 0.22) // 4
+    for wx in (-0.54, 0.52):
+        for wz in (-0.42, 0.42):
+            _wheel(pts, grp, 2, 2, wx, -0.10, wz, R=0.15, half_w=0.06, rng=rng, n=n_wheels)
+
+    # 4. Rear GT Wing / Spoiler (Group 0 & 3): dual struts + wide aerofoil blade
+    n_wing = int(n * 0.10)
+    for _ in range(n_wing):
+        zw = rng.uniform(-0.46, 0.46)
+        yw = rng.uniform(0.24, 0.27)
+        xw = rng.uniform(-0.78, -0.68)
+        pts.append((xw, yw, zw))
+        grp.append(0)
+    # Wing struts
+    for sz in (-0.24, 0.24):
+        for k in range(int(n * 0.02)):
+            pts.append((-0.72, 0.10 + k * 0.015, sz))
+            grp.append(0)
+
+    # 5. Headlights & Front Splitter (Group 3): sharp LED clusters
+    n_lights = int(n * 0.06)
+    for _ in range(n_lights):
+        side = 1 if rng.random() > 0.5 else -1
+        xl = rng.uniform(0.72, 0.84)
+        yl = rng.uniform(-0.06, 0.02)
+        zl = side * rng.uniform(0.24, 0.36)
+        pts.append((xl, yl, zl))
+        grp.append(3)
+
+    return pts, grp
+
+
+# ── Television Builder ──────────────────────────────────────────────────────
+
+def build_television(n: int, rng=None):
+    """Modern flat-screen television on tabletop stand with bezel frame and display panel."""
+    rng = rng or random.Random(42)
+    pts: list = []
+    grp: list = []
+
+    # 1. Bezel Frame (Group 0): slim rectangular housing
+    n_frame = int(n * 0.35)
+    _box_surface(pts, grp, 0, 0.0, 0.20, 0.0, 0.65, 0.42, 0.04, n_frame, rng)
+
+    # 2. Display Screen (Group 1): emissive interior display face
+    n_screen = int(n * 0.45)
+    for _ in range(n_screen):
+        sx = rng.uniform(-0.58, 0.58)
+        sy = rng.uniform(-0.16, 0.56)
+        pts.append((sx, sy, 0.045))
+        grp.append(1)
+
+    # 3. Tabletop Stand (Group 2): vertical neck + wide pedestal base
+    n_stand = int(n * 0.20)
+    # Neck
+    for _ in range(int(n_stand * 0.4)):
+        ny = rng.uniform(-0.35, -0.20)
+        nx = rng.uniform(-0.06, 0.06)
+        nz = rng.uniform(-0.04, 0.04)
+        pts.append((nx, ny, nz))
+        grp.append(2)
+    # Baseplate
+    for _ in range(int(n_stand * 0.6)):
+        bx = rng.uniform(-0.30, 0.30)
+        bz = rng.uniform(-0.20, 0.20)
+        by = rng.uniform(-0.38, -0.35)
+        pts.append((bx, by, bz))
+        grp.append(2)
+
+    return pts, grp
+
+
+# ── Laptop with Screen Builder ──────────────────────────────────────────────
+
+def build_laptop(n: int, rng=None):
+    """Opened laptop with keyboard deck, recessed trackpad, and angled screen display."""
+    rng = rng or random.Random(42)
+    pts: list = []
+    grp: list = []
+
+    # 1. Base Keyboard Deck (Group 0): horizontal slab
+    n_deck = int(n * 0.35)
+    _box_surface(pts, grp, 0, 0.0, -0.20, 0.32, 0.52, 0.025, 0.36, n_deck, rng)
+
+    # 2. Keyboard & Trackpad (Group 2): keys grid on top surface
+    n_keys = int(n * 0.22)
+    for _ in range(n_keys):
+        # Keyboard area
+        kx = rng.uniform(-0.42, 0.42)
+        kz = rng.uniform(0.12, 0.42)
+        pts.append((kx, -0.17, kz))
+        grp.append(2)
+    # Trackpad
+    for _ in range(int(n * 0.06)):
+        tx = rng.uniform(-0.14, 0.14)
+        tz = rng.uniform(0.50, 0.64)
+        pts.append((tx, -0.17, tz))
+        grp.append(2)
+
+    # 3. Angled Display Lid & Screen (Group 0 frame, Group 1 display panel)
+    # Screen tilts back ~25 deg from vertical around hinge at z=-0.04, y=-0.18
+    lid_angle = math.radians(65)  # opened 115 deg
+    cos_a, sin_a = math.cos(lid_angle), math.sin(lid_angle)
+
+    n_screen_pts = int(n * 0.37)
+    for _ in range(n_screen_pts):
+        lx = rng.uniform(-0.50, 0.50)
+        lh = rng.uniform(0.04, 0.68)   # along lid height
+        ld = rng.uniform(-0.02, 0.02)  # thickness
+        # Rotate up and back
+        ly = -0.18 + lh * sin_a - ld * cos_a
+        lz = -0.04 - lh * cos_a - ld * sin_a
+
+        # Inside face is screen display (Group 1), border is frame (Group 0)
+        if abs(lx) < 0.44 and lh > 0.08 and lh < 0.64:
+            pts.append((lx, ly, lz))
+            grp.append(1)
+        else:
+            pts.append((lx, ly, lz))
+            grp.append(0)
+
+    return pts, grp
+
+
+# ── Standing Fan Builder ────────────────────────────────────────────────────
+
+def build_fan(n: int, rng=None):
+    """Standing pedestal fan with circular base, support pole, motor hub, cage, and spinning blades."""
+    rng = rng or random.Random(42)
+    pts: list = []
+    grp: list = []
+
+    # 1. Base Disc (Group 0)
+    n_base = int(n * 0.16)
+    _ring(pts, grp, 0, 0.0, -0.75, 0.0, 0.38, 0.38, n_base, fill=0.85, rng=rng)
+
+    # 2. Telescoping Pole (Group 0)
+    n_pole = int(n * 0.18)
+    for _ in range(n_pole):
+        py = rng.uniform(-0.75, 0.15)
+        pa = rng.uniform(0, _TAU)
+        pts.append((0.035 * math.cos(pa), py, 0.035 * math.sin(pa)))
+        grp.append(0)
+
+    # 3. Motor Housing & Hub (Group 2)
+    n_hub = int(n * 0.12)
+    for _ in range(n_hub):
+        hy = 0.18 + rng.uniform(-0.08, 0.08)
+        hz = -0.08 + rng.uniform(-0.12, 0.06)
+        ha = rng.uniform(0, _TAU)
+        pts.append((0.09 * math.cos(ha), hy, hz))
+        grp.append(2)
+
+    # 4. Fan Cage Grill (Group 0): outer circular wire rim + cross ribs
+    n_cage = int(n * 0.22)
+    _ring(pts, grp, 0, 0.0, 0.18, 0.04, 0.44, 0.44, int(n_cage * 0.5), fill=0.0, rng=rng)
+    _ring(pts, grp, 0, 0.0, 0.18, 0.04, 0.28, 0.28, int(n_cage * 0.3), fill=0.0, rng=rng)
+    for _ in range(int(n_cage * 0.2)):
+        ra = rng.uniform(0, _TAU)
+        rr = rng.uniform(0.08, 0.44)
+        pts.append((rr * math.cos(ra), 0.18 + rr * math.sin(ra), 0.04))
+        grp.append(0)
+
+    # 5. Blades (Group 1): 4 wide curved aerofoil blades
+    n_blades = int(n * 0.32)
+    blade_count = 4
+    for b in range(blade_count):
+        base_angle = (b * _TAU) / blade_count
+        pts_per_blade = n_blades // blade_count
+        for _ in range(pts_per_blade):
+            rad = rng.uniform(0.08, 0.39)
+            # blade twist & curve
+            twist = 0.25 * math.sin((rad / 0.39) * math.pi)
+            ang = base_angle + rng.uniform(-0.25, 0.25)
+            bx = rad * math.cos(ang)
+            by = 0.18 + rad * math.sin(ang)
+            bz = 0.02 + twist * (0.05 if (b % 2 == 0) else -0.05)
+            pts.append((bx, by, bz))
+            grp.append(1)
+
+    return pts, grp
+
+
+# ── Chair Builder ───────────────────────────────────────────────────────────
+
+def build_chair(n: int, rng=None):
+    """Detailed ergonomic chair with seat cushion, curved backrest slats, 4 legs, and stretchers."""
+    rng = rng or random.Random(42)
+    pts: list = []
+    grp: list = []
+
+    # 1. Seat Cushion (Group 0): horizontal rounded slab
+    n_seat = int(n * 0.34)
+    _box_surface(pts, grp, 0, 0.0, -0.08, 0.0, 0.36, 0.04, 0.36, n_seat, rng)
+
+    # 2. Backrest (Group 1): vertical side uprights + horizontal curved slats
+    n_back = int(n * 0.36)
+    # Uprights
+    for sz in (-0.32, 0.32):
+        for _ in range(int(n_back * 0.25)):
+            by = rng.uniform(-0.06, 0.68)
+            bx = -0.32 - 0.05 * (by / 0.68)  # slight ergonomic lean
+            pts.append((bx, by, sz + rng.uniform(-0.025, 0.025)))
+            grp.append(1)
+    # Curved slats
+    for slat_y in (0.18, 0.38, 0.58):
+        for _ in range(int(n_back * 0.16)):
+            sz = rng.uniform(-0.30, 0.30)
+            arch = 0.05 * math.cos((sz / 0.30) * (math.pi / 2))
+            bx = -0.32 - arch
+            pts.append((bx, slat_y + rng.uniform(-0.03, 0.03), sz))
+            grp.append(1)
+
+    # 3. Legs & Stretchers (Group 2): 4 corner legs
+    n_legs = int(n * 0.30)
+    leg_pts = n_legs // 4
+    for lx in (-0.30, 0.30):
+        for lz in (-0.30, 0.30):
+            for _ in range(leg_pts):
+                t = rng.random()
+                ly = -0.12 - t * 0.62
+                spread = 0.04 * t
+                pts.append((lx + (1 if lx > 0 else -1) * spread, ly, lz + (1 if lz > 0 else -1) * spread))
+                grp.append(2)
+
+    return pts, grp
+
+
+# ── Table Builder ───────────────────────────────────────────────────────────
+
+def build_table(n: int, rng=None):
+    """Sturdy wooden dining/desk table with thick beveled top, apron frame, and 4 corner legs."""
+    rng = rng or random.Random(42)
+    pts: list = []
+    grp: list = []
+
+    # 1. Tabletop (Group 0): wide rectangular solid slab
+    n_top = int(n * 0.50)
+    _box_surface(pts, grp, 0, 0.0, 0.24, 0.0, 0.72, 0.045, 0.46, n_top, rng)
+
+    # 2. Apron Frame (Group 1): structural perimeter under tabletop
+    n_apron = int(n * 0.18)
+    for _ in range(n_apron):
+        side = rng.randrange(4)
+        ay = rng.uniform(0.12, 0.20)
+        if side == 0:   # front
+            pts.append((rng.uniform(-0.62, 0.62), ay, 0.38))
+        elif side == 1: # back
+            pts.append((rng.uniform(-0.62, 0.62), ay, -0.38))
+        elif side == 2: # left
+            pts.append((-0.62, ay, rng.uniform(-0.38, 0.38)))
+        else:           # right
+            pts.append((0.62, ay, rng.uniform(-0.38, 0.38)))
+        grp.append(1)
+
+    # 3. 4 Heavy Corner Legs (Group 2)
+    n_legs = int(n * 0.32)
+    pts_per_leg = n_legs // 4
+    for lx in (-0.60, 0.60):
+        for lz in (-0.36, 0.36):
+            for _ in range(pts_per_leg):
+                ly = rng.uniform(-0.75, 0.16)
+                pts.append((lx + rng.uniform(-0.04, 0.04), ly, lz + rng.uniform(-0.04, 0.04)))
+                grp.append(2)
+
+    return pts, grp
+
+
+# ── Soaring Bird Builder ────────────────────────────────────────────────────
+
+def build_bird(n: int, rng=None):
+    """Bird in soaring flight: aerodynamic body, arched wings with primary feathers, fan tail, and head/beak."""
+    rng = rng or random.Random(42)
+    pts: list = []
+    grp: list = []
+
+    # 1. Fuselage Body (Group 0): streamlined tapered oval
+    n_body = int(n * 0.30)
+    for _ in range(n_body):
+        t = rng.uniform(-0.55, 0.40)  # length along X
+        # radius along body
+        norm_t = (t - (-0.55)) / 0.95
+        rad = 0.16 * math.sin(norm_t * math.pi)
+        ang = rng.uniform(0, _TAU)
+        pts.append((t, rad * math.sin(ang), rad * math.cos(ang)))
+        grp.append(0)
+
+    # 2. Outstretched Wings (Group 1): sweeping arched aerofoils
+    n_wings = int(n * 0.48)
+    for _ in range(n_wings):
+        side = 1 if rng.random() > 0.5 else -1
+        span = rng.uniform(0.10, 0.90)  # Z distance out
+        # Wing sweep back along X and dihedral arch up along Y
+        wx = 0.05 - 0.35 * (span ** 1.3) + rng.uniform(-0.08, 0.08)
+        wy = 0.04 + 0.18 * math.sin(span * math.pi * 0.8) + rng.uniform(-0.02, 0.02)
+        wz = side * span
+        pts.append((wx, wy, wz))
+        grp.append(1)
+
+    # 3. Fan Tail Feathers (Group 1): flared rear horizontal fan
+    n_tail = int(n * 0.10)
+    for _ in range(n_tail):
+        tt = rng.uniform(0.0, 0.35)
+        tx = -0.55 - tt
+        tz = rng.uniform(-tt * 0.65, tt * 0.65)
+        ty = rng.uniform(-0.02, 0.04)
+        pts.append((tx, ty, tz))
+        grp.append(1)
+
+    # 4. Head and Beak (Group 2): head sphere + sharp forward conical beak
+    n_head = int(n * 0.12)
+    for _ in range(int(n_head * 0.65)):
+        ha = rng.uniform(0, _TAU)
+        hp = rng.uniform(-math.pi/2, math.pi/2)
+        hr = 0.10
+        hx = 0.42 + hr * math.cos(hp) * math.cos(ha)
+        hy = 0.06 + hr * math.sin(hp)
+        hz = hr * math.cos(hp) * math.sin(ha)
+        pts.append((hx, hy, hz))
+        grp.append(2)
+    # Beak
+    for _ in range(int(n_head * 0.35)):
+        bt = rng.uniform(0.0, 0.18)
+        bx = 0.50 + bt
+        br = 0.04 * (1.0 - bt / 0.18)
+        ba = rng.uniform(0, _TAU)
+        pts.append((bx, 0.06 + br * math.sin(ba), br * math.cos(ba)))
+        grp.append(2)
+
+    return pts, grp
+
+
+# ── Animal / Quadruped Builder ──────────────────────────────────────────────
+
+def build_animal(n: int, rng=None):
+    """Detailed quadruped mammal silhouette with ribcage barrel, articulated legs, neck/head, and arched tail."""
+    rng = rng or random.Random(42)
+    pts: list = []
+    grp: list = []
+
+    # 1. Torso Barrel (Group 0): ribbed cylinder along X
+    n_torso = int(n * 0.38)
+    for _ in range(n_torso):
+        t = rng.uniform(-0.48, 0.42)
+        norm = (t - (-0.48)) / 0.90
+        # deeper chest at front (t>0)
+        rx = 0.18 + 0.04 * math.sin(norm * math.pi)
+        ry = 0.20 + 0.05 * math.sin(norm * math.pi)
+        ang = rng.uniform(0, _TAU)
+        pts.append((t, 0.08 + ry * math.sin(ang), rx * math.cos(ang)))
+        grp.append(0)
+
+    # 2. 4 Articulated Legs with Paws (Group 0)
+    n_legs = int(n * 0.32)
+    pts_per_leg = n_legs // 4
+    for lx, front in ((-0.36, False), (0.32, True)):
+        for lz in (-0.16, 0.16):
+            for _ in range(pts_per_leg):
+                t = rng.random()
+                ly = 0.04 - t * 0.76
+                # Leg joint articulation
+                offset_x = 0.04 * math.sin(t * math.pi) if front else -0.06 * math.sin(t * math.pi)
+                pts.append((lx + offset_x, ly, lz + rng.uniform(-0.03, 0.03)))
+                grp.append(0)
+
+    # 3. Neck, Head, Snout & Ears (Group 1)
+    n_head = int(n * 0.20)
+    for _ in range(int(n_head * 0.5)):
+        # Head sphere
+        ha = rng.uniform(0, _TAU)
+        hp = rng.uniform(-math.pi/2, math.pi/2)
+        hx = 0.52 + 0.13 * math.cos(hp) * math.cos(ha)
+        hy = 0.34 + 0.13 * math.sin(hp)
+        hz = 0.13 * math.cos(hp) * math.sin(ha)
+        pts.append((hx, hy, hz))
+        grp.append(1)
+    # Snout
+    for _ in range(int(n_head * 0.3)):
+        st = rng.uniform(0.0, 0.16)
+        sx = 0.62 + st
+        sr = 0.07 * (1.0 - st / 0.20)
+        sa = rng.uniform(0, _TAU)
+        pts.append((sx, 0.31 + sr * math.sin(sa), sr * math.cos(sa)))
+        grp.append(1)
+    # Ears (pointed triangles atop head)
+    for ez in (-0.09, 0.09):
+        for _ in range(int(n_head * 0.1)):
+            et = rng.random()
+            pts.append((0.48 + et * 0.04, 0.45 + et * 0.14, ez + rng.uniform(-0.02, 0.02)))
+            grp.append(1)
+
+    # 4. Tail (Group 1): sweeping upward curve from rear
+    n_tail = int(n * 0.10)
+    for _ in range(n_tail):
+        tt = rng.random()
+        tx = -0.48 - tt * 0.26
+        ty = 0.16 + 0.28 * math.sin(tt * math.pi * 0.7)
+        tz = rng.uniform(-0.02, 0.02)
+        pts.append((tx, ty, tz))
+        grp.append(1)
+
+    return pts, grp
+
+
+# ── Human Head & Detailed Face Builder (OBJ Parser) ─────────────────────────
+
+_CACHED_FACE_DATA: tuple[list[tuple[float, float, float]], list[list[int]]] | None = None
+
+
+def _load_face_obj() -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Pure-python cached parser for canonical face model OBJ."""
+    global _CACHED_FACE_DATA
+    if _CACHED_FACE_DATA is not None:
+        return _CACHED_FACE_DATA
+
+    obj_path = Path(__file__).resolve().parent / "face_model.obj"
+    verts: list[tuple[float, float, float]] = []
+    faces: list[list[int]] = []
+
+    if obj_path.exists():
+        try:
+            for line in obj_path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("v "):
+                    parts = line.split()[1:4]
+                    verts.append((float(parts[0]), float(parts[1]), float(parts[2])))
+                elif line.startswith("f "):
+                    f_parts = [int(p.split("/")[0]) - 1 for p in line.split()[1:4]]
+                    faces.append(f_parts)
+        except Exception as e:
+            print(f"[animated_shapes] Warning reading face_model.obj: {e}")
+
+    _CACHED_FACE_DATA = (verts, faces)
+    return verts, faces
+
+
+def build_detailed_face(n: int, rng=None):
+    """Dense 3D human face sampled directly from MediaPipe canonical geometry.
+    Captures eyelids, lips, nasal bridge, nostrils, cheekbones, and jawline."""
+    rng = rng or random.Random(42)
+    verts, faces = _load_face_obj()
+    pts: list = []
+    grp: list = []
+
+    if not verts or not faces:
+        # Fallback to procedural face if OBJ missing
+        return build_human(n)
+
+    # MediaPipe landmark vertex indices for facial feature highlights
+    FEATURE_INDICES = {
+        # Lips
+        61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0,
+        37, 39, 40, 185, 78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 415,
+        # Eyes & Brows
+        33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246,
+        263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466,
+        70, 63, 105, 66, 107, 300, 293, 334, 296, 336,
+        # Nose bridge
+        1, 2, 4, 5, 6, 168, 195, 197, 98, 327
+    }
+
+    # 1. Sample base vertices
+    for idx, (vx, vy, vz) in enumerate(verts):
+        pts.append((vx, vy, vz))
+        grp.append(1 if idx in FEATURE_INDICES else 0)
+
+    # 2. Densely interpolate across triangle faces
+    remain = max(0, n - len(pts))
+    n_faces = len(faces)
+    for _ in range(remain):
+        fi = rng.randrange(n_faces)
+        v0_i, v1_i, v2_i = faces[fi]
+        v0, v1, v2 = verts[v0_i], verts[v1_i], verts[v2_i]
+
+        # Uniform barycentric sampling
+        r1, r2 = rng.random(), rng.random()
+        if r1 + r2 > 1.0:
+            r1, r2 = 1.0 - r1, 1.0 - r2
+        r3 = 1.0 - r1 - r2
+
+        px = r1 * v0[0] + r2 * v1[0] + r3 * v2[0]
+        py = r1 * v0[1] + r2 * v1[1] + r3 * v2[1]
+        pz = r1 * v0[2] + r2 * v1[2] + r3 * v2[2]
+
+        is_feat = (v0_i in FEATURE_INDICES or v1_i in FEATURE_INDICES or v2_i in FEATURE_INDICES)
+        pts.append((px, py, pz))
+        grp.append(1 if is_feat else 0)
+
+    return pts, grp
+
+
+def build_human_head(n: int, rng=None):
+    """Full 3D human head: canonical face mesh seamlessly integrated with cranial skull dome and neck."""
+    rng = rng or random.Random(42)
+    # Start with detailed face for 65% of budget
+    pts, grp = build_detailed_face(int(n * 0.65), rng=rng)
+
+    # Cranium Skull Dome (swept back and up)
+    n_cranium = int(n * 0.25)
+    for _ in range(n_cranium):
+        th = rng.uniform(0.1, math.pi * 0.95)
+        ph = rng.uniform(-math.pi * 0.8, -math.pi * 0.1)  # back of head
+        rx, ry, rz = 7.8, 9.6, 7.8
+        cx, cy, cz = 0.0, 1.5, -1.2
+        x = cx + rx * math.sin(th) * math.cos(ph)
+        y = cy + ry * math.cos(th)
+        z = cz + rz * math.sin(th) * math.sin(ph)
+        pts.append((x, y, z))
+        grp.append(0)
+
+    # Neck Column
+    n_neck = int(n * 0.10)
+    for _ in range(n_neck):
+        ny = rng.uniform(-13.0, -8.0)
+        na = rng.uniform(0, _TAU)
+        nr = 4.6 + 0.6 * ((-8.0 - ny) / 5.0)
+        pts.append((nr * math.cos(na), ny, -2.0 + nr * math.sin(na)))
+        grp.append(2)
+
+    return pts, grp
+
+
 # ── registry + per-shape default camera ─────────────────────────────────────
 # (pitch, yaw_offset): the renderer applies these once so the object reads
 # instantly from the default view. Cars/planes get a 3/4 view; hearts face
 # the camera flat-on (the heart outline is in the X-Y plane); planets need none.
 
 SHAPE_CAMERA = {
-    "car":    (0.30, math.radians(-52)),   # 3/4 front-left, slightly from above
-    "cat":    (0.22, math.radians(-35)),
-    "house":  (0.26, math.radians(-38)),
-    "rocket": (0.18, math.radians(0)),
-    "robot":  (0.16, math.radians(-22)),
-    "tree":   (0.10, 0.0),
-    "planet": (0.20, 0.0),
-    "earth":  (0.20, 0.0),
-    "saturn": (0.32, math.radians(-18)),
-    "heart":  (0.02, 0.0),                  # face-on so the lobes read
-    "cube":   (0.30, math.radians(-40)),
-    "sphere": (0.10, 0.0),
-    "star":   (0.02, 0.0),                  # face-on 5-pointed star
-    "flower": (0.32, math.radians(-15)),    # top-3/4 blossom view
-    "human":  (0.10, math.radians(-20)),    # standing human silhouette
-    "person": (0.10, math.radians(-20)),
+    "car":           (0.30, math.radians(-52)),   # 3/4 front-left, slightly from above
+    "sports car":    (0.28, math.radians(-50)),   # aggressive low-angle 3/4 GT stance
+    "sportscar":     (0.28, math.radians(-50)),
+    "cat":           (0.22, math.radians(-35)),
+    "animal":        (0.20, math.radians(-35)),
+    "bird":          (0.22, math.radians(-30)),
+    "house":         (0.26, math.radians(-38)),
+    "rocket":        (0.18, math.radians(0)),
+    "robot":         (0.16, math.radians(-22)),
+    "tree":          (0.10, 0.0),
+    "planet":        (0.20, 0.0),
+    "earth":         (0.20, 0.0),
+    "saturn":        (0.32, math.radians(-18)),
+    "heart":         (0.02, 0.0),                  # face-on so the lobes read
+    "cube":          (0.30, math.radians(-40)),
+    "sphere":        (0.10, 0.0),
+    "star":          (0.02, 0.0),                  # face-on 5-pointed star
+    "flower":        (0.32, math.radians(-15)),    # top-3/4 blossom view
+    "human":         (0.10, math.radians(-20)),    # standing human silhouette
+    "person":        (0.10, math.radians(-20)),
+    "television":    (0.12, math.radians(-25)),
+    "tv":            (0.12, math.radians(-25)),
+    "laptop":        (0.35, math.radians(-35)),
+    "fan":           (0.18, math.radians(-25)),
+    "chair":         (0.28, math.radians(-38)),
+    "table":         (0.35, math.radians(-42)),
+    "human head":    (0.12, math.radians(-22)),
+    "head":          (0.12, math.radians(-22)),
+    "detailed face": (0.04, 0.0),                  # face-on high-definition portrait
+    "face":          (0.04, 0.0),
 }
 
 SHAPE_BUILDERS = {
-    "car":    build_car,
-    "tree":   build_tree,
-    "planet": build_planet,
-    "earth":  build_planet,
-    "heart":  build_heart,
-    "rocket": build_rocket,
-    "cat":    build_cat,
-    "house":  build_house,
-    "robot":  build_robot,
-    "saturn": build_saturn,
-    "cube":   build_cube,
-    "sphere": build_sphere,
-    "star":   build_star,
-    "flower": build_flower,
-    "human":  build_human,
-    "person": build_human,
+    "car":           build_car,
+    "sports car":    build_sports_car,
+    "sportscar":     build_sports_car,
+    "sports_car":    build_sports_car,
+    "tree":          build_tree,
+    "planet":        build_planet,
+    "earth":         build_planet,
+    "heart":         build_heart,
+    "rocket":        build_rocket,
+    "cat":           build_cat,
+    "animal":        build_animal,
+    "dog":           build_animal,
+    "bird":          build_bird,
+    "house":         build_house,
+    "robot":         build_robot,
+    "saturn":        build_saturn,
+    "cube":          build_cube,
+    "sphere":        build_sphere,
+    "star":          build_star,
+    "flower":        build_flower,
+    "human":         build_human,
+    "person":        build_human,
+    "television":    build_television,
+    "tv":            build_television,
+    "laptop":        build_laptop,
+    "laptop with screen": build_laptop,
+    "fan":           build_fan,
+    "chair":         build_chair,
+    "table":         build_table,
+    "human head":    build_human_head,
+    "head":          build_human_head,
+    "detailed face": build_detailed_face,
+    "face":          build_detailed_face,
 }
 
 

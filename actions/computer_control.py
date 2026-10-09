@@ -256,71 +256,20 @@ def _clear_field() -> str:
     return "Field cleared"
 
 def _focus_window(title: str) -> str:
-    os_name = _get_os()
+    if not title:
+        return "No window title provided to focus."
 
-    if os_name == "windows":
-        try:
-            script = f'(New-Object -ComObject WScript.Shell).AppActivate("{title}")'
-            subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                capture_output=True, timeout=5, **_WIN_HIDE,
-            )
-            time.sleep(0.3)
-            # AppActivate's True/False is swallowed by the shell, so verify the
-            # foreground window directly. An unchecked "Focused window: X" is
-            # how keystrokes end up typed into whatever was actually in front.
-            try:
-                import pygetwindow as _gw
-                active = _gw.getActiveWindow()
-                active_title = (active.title or "") if active else ""
-            except Exception:
-                active_title = ""
-            if active_title and title.lower() not in active_title.lower():
-                return (f"Could not focus '{title}' — "
-                        f"'{active_title[:50]}' is in the foreground instead.")
-            return f"Focused window: {title}"
-        except Exception as e:
-            return f"focus_window (Windows) failed: {e}"
+    from core.self_healing_control import WindowManager
+    ok = WindowManager.acquire_and_focus(title)
+    if ok:
+        return f"Focused window: {title}"
 
-    if os_name == "mac":
-        script = (
-            f'tell application "System Events" to '
-            f'set frontmost of (first process whose name contains "{title}") to true'
-        )
-        try:
-            subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True, timeout=5,
-            )
-            time.sleep(0.3)
-            return f"Focused window: {title}"
-        except Exception as e:
-            return f"focus_window (macOS) failed: {e}"
-
-    if os_name == "linux":
-        try:
-            result = subprocess.run(
-                ["wmctrl", "-a", title],
-                capture_output=True, timeout=5,
-            )
-            if result.returncode == 0:
-                time.sleep(0.3)
-                return f"Focused window: {title}"
-        except FileNotFoundError:
-            pass
-        try:
-            result = subprocess.run(
-                ["xdotool", "search", "--name", title, "windowactivate"],
-                capture_output=True, timeout=5,
-            )
-            time.sleep(0.3)
-            return f"Focused window: {title}"
-        except FileNotFoundError:
-            return "focus_window (Linux) requires wmctrl or xdotool"
-        except Exception as e:
-            return f"focus_window (Linux) failed: {e}"
-
-    return f"focus_window: unknown OS '{os_name}'"
+    active = WindowManager.get_active_window_title()
+    all_open = WindowManager.list_windows()
+    matching = [w for w in all_open if title.lower() in w.lower()]
+    if matching:
+        return f"Found matching window '{matching[0]}', but could not bring it to foreground (currently active: '{active[:50]}')."
+    return f"Could not find window matching '{title}'. Open windows: {', '.join(w[:30] for w in all_open[:5]) or 'none'}."
 
 def _screen_find(description: str) -> tuple[int, int] | None:
     api_key = _get_api_key()
@@ -427,23 +376,46 @@ def computer_control(
 
     try:
 
+        from core.self_healing_control import SelfHealingController
+
+        if action in ("close_app", "close_window", "quit_app"):
+            target = params.get("app_name") or params.get("title") or params.get("text", "")
+            ok, msg = SelfHealingController.close_application_safe(target)
+            return msg
+
+        target_win = params.get("title")
+
         if action == "type":
-            return _type(params.get("text", ""))
+            ok, res, msg = SelfHealingController.execute_with_healing(
+                "type", lambda: _type(params.get("text", "")), target_window=target_win
+            )
+            return res if ok else msg
 
         if action == "smart_type":
-            return _smart_type(
-                params.get("text", ""),
-                clear_first=params.get("clear_first", True),
+            ok, res, msg = SelfHealingController.execute_with_healing(
+                "smart_type",
+                lambda: _smart_type(params.get("text", ""), clear_first=params.get("clear_first", True)),
+                target_window=target_win,
             )
+            return res if ok else msg
 
         if action in ("click", "left_click"):
-            return _click(params.get("x"), params.get("y"), "left", 1)
+            ok, res, msg = SelfHealingController.execute_with_healing(
+                "click", lambda: _click(params.get("x"), params.get("y"), "left", 1), target_window=target_win
+            )
+            return res if ok else msg
 
         if action == "double_click":
-            return _click(params.get("x"), params.get("y"), "left", 2)
+            ok, res, msg = SelfHealingController.execute_with_healing(
+                "double_click", lambda: _click(params.get("x"), params.get("y"), "left", 2), target_window=target_win
+            )
+            return res if ok else msg
 
         if action == "right_click":
-            return _click(params.get("x"), params.get("y"), "right", 1)
+            ok, res, msg = SelfHealingController.execute_with_healing(
+                "right_click", lambda: _click(params.get("x"), params.get("y"), "right", 1), target_window=target_win
+            )
+            return res if ok else msg
 
         if action == "move":
             return _move(int(params.get("x", 0)), int(params.get("y", 0)))
@@ -457,10 +429,16 @@ def computer_control(
         if action == "hotkey":
             raw  = params.get("keys", "")
             keys = [k.strip() for k in raw.split("+")] if isinstance(raw, str) else raw
-            return _hotkey(*keys)
+            ok, res, msg = SelfHealingController.execute_with_healing(
+                "hotkey", lambda: _hotkey(*keys), target_window=target_win
+            )
+            return res if ok else msg
 
         if action == "press":
-            return _press(params.get("key", "enter"))
+            ok, res, msg = SelfHealingController.execute_with_healing(
+                "press", lambda: _press(params.get("key", "enter")), target_window=target_win
+            )
+            return res if ok else msg
 
         if action == "scroll":
             return _scroll(
@@ -533,7 +511,11 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | random_data | user_data"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | close_app | screen_find | screen_click | random_data | user_data"
+            },
+            "app_name": {
+                "type": "STRING",
+                "description": "Application name to close (e.g. 'chrome', 'notepad')"
             },
             "text": {
                 "type": "STRING",

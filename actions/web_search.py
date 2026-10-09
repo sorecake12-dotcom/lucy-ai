@@ -357,6 +357,21 @@ def web_search(
     if not query and not items:
         return "Please provide a search query."
 
+    from core.api_guard import get_guard, redact_secrets
+    guard = get_guard()
+    try:
+        guard.assert_api_allowed("Web Search")
+    except Exception as e:
+        return f"Search blocked: {e}"
+
+    ok, loop_err = guard.loop_guard.record_and_check("web_search", params)
+    if not ok:
+        print(f"[WebSearch] ⚠️ {loop_err}")
+        return loop_err
+
+    if not guard.search_limiter.acquire(block=True, timeout=10.0):
+        return "Web search rate limit reached — please wait a moment."
+
     if items and mode not in ("compare",):
         mode = "compare"
 

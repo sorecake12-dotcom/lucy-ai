@@ -1,120 +1,141 @@
 <div align="center">
   <img src="config/logo.png" width="180" alt="LUCY Logo" />
   <h1>LUCY</h1>
-  <p><strong>Cross-Platform Real-Time Desktop AI Assistant</strong></p>
+  <p><strong>Autonomous Real-Time Voice & Desktop Operating System Assistant</strong></p>
+  <p>
+    <a href="https://github.com/sorecake12-dotcom/lucy-ai/actions"><img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build Status"></a>
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
+    <a href="https://github.com/sorecake12-dotcom/lucy-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
+    <a href="https://github.com/sorecake12-dotcom/lucy-ai"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Platform"></a>
+  </p>
 </div>
 
-LUCY is a cross-platform, real-time desktop AI assistant that can hear, see, speak, and interact with your computer. Built with Python, PyQt6, and the Gemini Live API, LUCY provides low-latency bi-directional voice conversation, computer automation, visual perception, persistent memory, and a customizable futuristic desktop interface.
-
-Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
+LUCY is a cross-platform, low-latency desktop AI assistant and computer automation platform. Engineered with Python, PyQt6, and the Gemini Live bi-directional WebSocket API, LUCY operates with native audio streaming, computer vision, self-healing operating system automation, a procedural 3D particle visualizer, and a production-grade API protection architecture.
 
 ---
 
-## Features
+## Architecture Overview
 
-### AI Assistant
-* **Real-Time Conversational AI**: Ultra-low-latency voice conversation powered by the Gemini Live API.
-* **Autonomous Task Agent**: High-level task planner capable of multi-step problem solving and developer workflows.
-* **Dynamic Self-Awareness**: Runtime system inspection allowing LUCY to dynamically adapt to her host OS, active tools, and capabilities at session boot.
-* **Proactive Intelligence**: Time-aware check-ins, morning briefings (time, weather, headlines recap), and daily topic monitoring.
-* **Tool Discovery**: Auto-discovery of modular tools and drop-in extensions with single-file definitions.
-
-### Voice / Speech
-* **Native Audio Streaming**: Bi-directional audio pipeline using PyAudio and Gemini Live PCM audio without external TTS delay.
-* **Offline Wake Word**: Local wake-word gating (`hey_jarvis` model via openWakeWord) allowing hands-free activation with zero audio transmission while asleep.
-* **Voice Activity Detection & Barge-In**: Real-time speech interruption (ESC key / interrupt button / voice detection) that discards queued audio instantly.
-* **Self-Echo Suppression**: Discards assistant echo from speakers to prevent the microphone from feeding back into itself.
-* **Voice Options**: Live switching between Gemini Live prebuilt voices (Puck, Charon, Kore, Fenrir, Aoede).
-* **Double-Clap Activation**: Acoustic trigger to wake or grab attention.
-* **Push-to-Talk**: Optional push-to-talk mode (`Ctrl+Space`).
-
-### Desktop Automation
-* **App Launcher**: Searches and launches installed applications across Windows, macOS, and Linux.
-* **System Controls**: Control system audio volume, screen brightness, Wi-Fi status, and system power states (sleep, restart, shutdown).
-* **Window & Desktop Control**: Desktop manipulation, active window tracking, keystroke automation, and shortcut execution.
-* **Safety Confirmation Gate**: Reversible/irreversible action safeguards requiring explicit user confirmation before executing critical operations.
-
-### Browser Automation
-* **Headless & Headful Web Control**: Fast, resilient web automation powered by Playwright across Chromium and Firefox.
-* **Web Navigation & Search**: Query execution on DuckDuckGo, Google, and direct URL navigation.
-* **Page Interaction**: Text extraction, element clicking, form entry, and page reading.
-
-### Memory
-* **Long-Term Memory**: Persistent store for user preferences, personal context, habits, and ongoing projects across sessions.
-* **Memory Dashboard**: Floating UI panel to inspect, search, and delete stored memories in one click.
-* **Context Summarization**: Session summaries that condense long conversation histories without losing critical facts.
-
-### Screen / Perception
-* **Desktop Screen Capture**: Captures desktop displays for instant visual analysis and troubleshooting.
-* **Webcam Vision**: Streams webcam frames into Gemini for real-time visual question answering and physical scene understanding.
-* **Source Labeling**: Distinguishes screen captures (computer state) from webcam frames (user/room state).
-
-### Integrations
-* **Gmail Automation**: Reads incoming emails, summarizes unread threads, drafts replies, and sends messages.
-* **WhatsApp Automation**: Web-based WhatsApp messaging automation with linked session persistence.
-* **Media & Information**: YouTube video transcript fetching and summarization, flight searches, and real-time weather reports.
-
-### Security
-* **Safe Boundaries**: Explicit user-confirmation safeguards for destructive actions (system shutdown, Wi-Fi disconnection).
-* **Local Processing for Sensitive Data**: Wake-word and audio levels processed locally on-device.
-* **Credential Isolation**: Encrypted or local JSON configuration storage ignored by version control.
-
-### Quick Assistant
-* **Clipboard Monitor Panel**: Floating HUD shortcut panel that triggers contextual actions when text is copied.
-* **Global Hotkeys**: Quick-stop interruption, push-to-talk, and full-screen HUD toggle.
-
-### Settings & Customization
-* **Personality Modes**: Select between three distinct real-time personality modes (`GF`, `JARVIS`, and `ASSISTANT`):
-  * **GF**: Friendly, warm, playful, and slightly teasing girlfriend-style companion AI that can joke and banter while strictly executing all requested tasks without refusal.
-  * **JARVIS**: Classic LUCY operator persona — level-headed, authoritative, dry humor, and grounded in concrete facts.
-  * **ASSISTANT**: Professional, concise, direct, and task-oriented with zero fluff and no unnecessary confirmation questions.
-* **Name & Addressing**: Configurable assistant name and user title.
-* **Live HUD Theming**: Dynamic theme color picker supporting full UI recoloring and custom hex values.
-* **Holographic Wireframe Face, Reactor Core & 3D Particle Blob**: Switch seamlessly between visual centerpiece styles:
-  * **Wireframe Face**: Real-time lip-sync with anatomical mouth depth and living green eyes with organic blinking and state-driven gaze shifts.
-  * **Arc Reactor Core**: Pulsing cybernetic reactor centerpiece.
-  * **3D Particle Blob & Morphing Visualizer**: Living particle sphere that morphs on command into 3D particle objects (`car`, `heart`, `earth`, `rocket`, `tree`, `cat`, `house`, `robot`, `saturn`, `cube`, `sphere`, `star`, `flower`, `human silhouette`) with dynamic palettes.
-* **Audio Device Selector**: In-app selection of preferred microphone and output speaker hardware.
-
-### System & Desktop Integration
-* **System Metrics Monitor**: Real-time CPU, RAM, and GPU load visualizers.
-* **OS Shortcuts**: One-click generation of native Desktop and Start Menu shortcuts.
-* **Auto-Start on Boot**: Cross-platform autostart toggle via Windows Registry, macOS LaunchAgents, or Linux desktop autostart.
-
-### Remote Features
-* **Encrypted Web Companion**: Built-in local HTTPS/WSS server providing a mobile and remote browser interface.
-* **QR Code Pairing**: Instant pairing between mobile phones and the desktop instance without manual IP configuration.
-* **AES-256 GCM Transport**: End-to-end payload encryption for remote commands.
+```
+lucy-ai/
+├── actions/                  # Modular tool & automation plugins
+│   ├── browser_control.py    # Playwright browser interaction engine
+│   ├── code_helper.py        # Code generation, syntax analysis & linting
+│   ├── computer_control.py   # Keyboard, mouse, and self-healing input dispatch
+│   ├── computer_settings.py  # System volume, brightness, power & state control
+│   ├── date_time_location.py # System timezone, local time & geolocation resolution
+│   ├── desktop.py            # Window snapping, workplace tiling & focus control
+│   ├── dev_agent.py          # Autonomous multi-step software developer loop
+│   ├── file_controller.py    # File search, directory indexing & disk management
+│   ├── open_app.py           # Cross-platform application discovery & launcher
+│   ├── particle_visualizer.py# Natural-language 3D particle shape director
+│   ├── reminder.py           # Native OS task scheduling & notifications
+│   ├── weather_report.py     # Open-Meteo real-time meteorological reports
+│   ├── web_search.py         # DuckDuckGo rate-controlled search scraper
+│   └── youtube_video.py      # Audio extraction & transcript analysis
+├── core/                     # Core system engines & runtime drivers
+│   ├── action_loader.py      # Dynamic tool scanner & JSON schema generator
+│   ├── animated_shapes.py    # Procedural 3D particle generator & pure-Python OBJ engine
+│   ├── api_guard.py          # Production security, rate limiter, quotas & kill switch
+│   ├── audio_devices.py      # PortAudio hardware discovery & ring buffers
+│   ├── avatar.py             # 3D software-rendered wireframe face & viseme mouth sync
+│   ├── gemini.py             # Low-latency Gemini Live WebSocket streaming client
+│   ├── geo_time.py           # OS local clock synchronization & IP geolocation
+│   ├── llm_client.py         # REST fallback client with exponential backoff & jitter
+│   ├── particle_blob.py      # Living organic particle sphere simulation
+│   ├── personality.py        # Multi-personality prompt matrix (GF, JARVIS, ASSISTANT)
+│   ├── platform_adapter.py   # Cross-platform OS abstraction (Windows, macOS, Linux)
+│   ├── self_healing_control.py# Automated failure diagnosis & UI focus recovery
+│   └── wake_word.py          # Offline openWakeWord acoustic gating thread
+├── memory/                   # State, memory & configuration
+│   ├── config_manager.py     # Schema validator & preferences management
+│   └── memory_manager.py     # Long-term semantic store with SQLite persistence
+├── tests/                    # Subsystem test suites
+│   ├── test_api_guard.py     # Rate limiting, circuit breakers & secret scrubbing
+│   ├── test_geo_time.py      # Local time sync & geolocation resolution
+│   ├── test_platform.py      # Cross-platform capabilities & OS detection
+│   ├── test_self_healing.py  # Failure diagnosis & window recovery
+│   ├── test_shapes.py        # 3D procedural geometries & OBJ mesh validation
+│   └── test_smoke.py         # Action loader & engine integration tests
+├── dashboard/                # Encrypted remote companion server & WebSockets
+├── launcher/                 # Native C# bootstrap source (LUCY_launcher.cs)
+├── main.py                   # Master event loop & session orchestrator
+├── ui.py                     # PyQt6 dark HUD, visualizers & settings canvas
+├── setup.bat                 # Windows automated deployment bootstrapper
+├── setup.py                  # Cross-platform dependency installer
+└── build_dist.py             # Production distribution packaging pipeline
+```
 
 ---
 
-## Setup
+## Core Capabilities
 
-### Option A: Windows 1-Click Launch (Recommended for Windows 10 / 11)
-*No manual Python installation required.*
+### 1. Production API Protection & Security Layer (`core/api_guard.py`)
+* **Sliding-Window Rate Limiting**: Dedicated token and request bucket limiters for Gemini REST, Live WebSockets, web scrapers, browser actions, and tool calls.
+* **Concurrency Control**: Semaphore-bounded worker pools preventing resource starvation under rapid query bursts.
+* **Exponential Backoff & Jitter**: Full randomized jitter backoff with dynamic parsing of HTTP `429 Retry-After` headers. Never retries indefinitely.
+* **Agent Loop Circuit Breaker**: Real-time fingerprinting of tool actions to detect runaway loops, identical repeat thrashing, and alternating cycles.
+* **Persistent Quota Tracking**: Daily and monthly request and token quotas persisted to disk (`memory/usage_stats.json`).
+* **Emergency Kill Switch**: Instant global kill switch toggleable via configuration or API to halt all outbound network requests.
+* **Credential Sanitization**: In-memory regex scrubbing of logs, errors, and tracebacks to ensure API keys, Bearer tokens, and secrets are never leaked.
 
-1. **Download the release or clone the repository**:
+### 2. Procedural 3D Particle Visualizer (`core/animated_shapes.py`)
+* **25 Dynamic Geometric Objects**: Mathematical procedural point-cloud generation for cars, sports cars, hearts, trees, robots, televisions, laptops, fans, chairs, tables, houses, rockets, planets (Earth/Saturn), flowers, birds, animals, and human head silhouettes.
+* **Pure-Python 3D OBJ Parser**: Custom mesh loader that samples 3D vertices and polygonal surfaces directly from `core/face_model.obj` without external C-extensions.
+* **Dynamic Palette & Camera Mapping**: Pre-calibrated 3D bounding boxes, tilt/pitch angles, and multi-region color palettes (e.g. blue ocean with green land, red sports car with white rims).
+* **Fluid Morphing Transitions**: Seamless interpolation between the organic living idle blob and requested physical 3D objects.
+* **Adaptive Density**: Particle counts scale dynamically based on host device performance.
+
+### 3. Self-Healing Computer Automation (`core/self_healing_control.py`)
+* **7-Point Automated Failure Diagnosis**: Automatically categorizes automation failures into:
+  * `STALE_HANDLE`: Stale or closed window handle.
+  * `LOST_FOCUS`: Target window minimized, occluded, or backgrounded.
+  * `DISCONNECTED_AUTOMATION`: IPC or display worker failure.
+  * `FAILED_INPUT_BACKEND`: Display lock, PyAutoGUI failsafe, or clipboard contention.
+  * `TEMP_PROCESS_FAILURE`: Process hung or temporarily unresponsive.
+  * `PERMISSION_PROBLEM`: Elevated UAC or accessibility permission denial.
+  * `APP_SPECIFIC_FAILURE`: Application crashed or missing.
+* **Automated Recovery Loop**: Window state recovery using native Win32 `ShowWindow(SW_RESTORE)` + `SetForegroundWindow`, macOS AppleScript frontmost process switching, and Linux `wmctrl` / `xdotool`.
+* **Bounded Retries**: Maximum 3 self-healing attempts with exponential retry backoff.
+* **Graceful Termination**: Non-destructive `WM_CLOSE` window messaging before escalating to process termination.
+
+### 4. Real-Time Geolocation & Time Engine (`core/geo_time.py`)
+* **Host Operating System Clock Sync**: Real-time extraction of host OS time, date, local timezone, and UTC offsets (full support for `Asia/Kolkata` / `UTC+05:30`).
+* **Multi-Tier Geolocation**: Configured city override → cached network IP geolocation (1-hour memory cache) → safe fallback.
+* **Honest Attribution**: Strictly distinguishes network-based approximate coordinates from GPS and prevents hallucinated precision.
+
+### 5. Multi-Personality Core (`core/personality.py`)
+* **GF Mode**: Warm, playful, witty, and engaging companion persona designed for conversational companionship without refusing system actions.
+* **JARVIS Mode**: Professional, authoritative, and analytical operator persona inspired by classic desktop AI systems.
+* **ASSISTANT Mode**: Minimalist, hyper-concise, and instruction-focused execution mode with zero conversational fluff.
+
+---
+
+## Getting Started
+
+### Windows 1-Click Launch (Recommended)
+No manual Python installation required.
+
+1. **Clone the repository**:
    ```cmd
    git clone https://github.com/sorecake12-dotcom/lucy-ai.git
    cd lucy-ai
    ```
 
 2. **Run setup**:
-   Double-click `setup.bat` in the folder.
-   * `setup.bat` installs LUCY into `%LOCALAPPDATA%\LUCY`.
-   * Automatically provisions a portable Python 3.11 runtime and dependencies.
-   * Compiles the native launcher `LUCY.exe` directly inside the installation directory.
-   * Generates native **Desktop** and **Start Menu** shortcuts.
-   * On future launches, launch LUCY directly from your Desktop shortcut or `setup.bat`.
-
+   Double-click `setup.bat`.
+   * Automatically configures a portable Python 3.11 runtime.
+   * Installs all dependencies.
+   * Compiles the native C# launcher `LUCY.exe`.
+   * Creates desktop and Start Menu shortcuts.
 
 ---
 
-### Option B: Cross-Platform & Developer Setup (Windows / macOS / Linux)
+### Cross-Platform Setup (Windows / macOS / Linux)
 
 #### Prerequisites
-* **Python**: 3.11 to 3.13 (Python 3.11+ required).
-* **Gemini API Key**: A valid Google Gemini API key.
+* Python 3.11, 3.12, or 3.13.
+* Google Gemini API Key.
 
 #### Installation
 1. **Clone the repository**:
@@ -123,94 +144,77 @@ Website: [https://lucy-net.ai.studio/](https://lucy-net.ai.studio/)
    cd lucy-ai
    ```
 
-2. **Run automated environment setup**:
+2. **Install dependencies**:
    ```bash
    python setup.py
    ```
-   This script installs Python dependencies and downloads Playwright browsers (Chromium and Firefox).
 
-3. **Launch LUCY**:
+3. **Launch the assistant**:
    ```bash
    python main.py
    ```
-   On first launch, enter your Gemini API key in the initialization overlay.
+   On first launch, enter your Gemini API key in the configuration dialog.
 
 ---
 
-## Standalone Distribution & Packaging
+## Running the Test Suite
 
-To create a self-contained, standalone Windows distribution package for deployment:
+LUCY includes a comprehensive automated test suite covering all core systems:
+
+```bash
+# Run all unit and integration tests
+python -m unittest discover tests
+
+# Or run specific subsystem test suites
+python -m unittest tests/test_shapes.py
+python -m unittest tests/test_api_guard.py
+python -m unittest tests/test_self_healing.py
+python -m unittest tests/test_geo_time.py
+python -m unittest tests/test_platform.py
+```
+
+---
+
+## Standalone Distribution Build
+
+To package a standalone, self-contained binary distribution:
 
 ```bash
 python build_dist.py
 ```
 
-This generates:
-* `dist/LUCY/`: Standalone application directory with embedded Python runtime.
-* `dist/LUCY.zip`: Compressed release archive for end users.
-* `dist/SHA256SUMS.txt`: Cryptographic SHA-256 integrity checksums.
-
----
-
-## Architecture
-
-* **`main.py`**: Application entrypoint and `JarvisLive` orchestration loop managing WebSocket connections, audio pipelines, tool dispatch, and event handling.
-* **`ui.py`**: PyQt6 GUI implementation featuring the holographic avatar canvas, audio visualizers, settings overlays, logs, and system trays.
-* **`setup.bat`**: 1-click Windows zero-dependency environment bootstrapper and launcher compiler.
-* **`build_dist.py`**: Standalone distribution packaging pipeline creating self-contained releases with checksum verification.
-* **`launcher/`**: Native Windows launcher source (`LUCY_launcher.cs`) compiled on-demand into `LUCY.exe`.
-* **`core/`**: Fundamental engine utilities:
-  * `personality.py`: Multi-personality system engine and dynamic prompt injectors for GF, JARVIS, and ASSISTANT modes.
-  * `avatar.py`: Software-rendered 3D holographic head, phonetic viseme mapping, and lip-sync.
-  * `llm_client.py`: Gemini Live API client with continuous streaming and context compression.
-  * `wake_word.py`: Local openWakeWord detection thread.
-  * `audio_devices.py`: Hardware device discovery and audio configuration.
-  * `plugin_loader.py` & `action_loader.py`: Dynamic tool registration.
-* **`actions/`**: Built-in automation modules:
-  * `desktop.py` & `computer_control.py`: Windows/OS keyboard, mouse, and process management.
-  * `code_helper.py` & `dev_agent.py`: Autonomous code execution, refactoring, and developer assistance.
-  * `browser_control.py`: Playwright web automation engine.
-  * `screen_processor.py`: Screen and webcam capture pipelines.
-  * `email_automation.py` & `whatsapp.py`: Communications automations.
-  * `computer_settings.py`: Volume, brightness, Wi-Fi, and power controls.
-  * `reminder.py`: Background scheduler and native notifications.
-* **`memory/`**: Memory subsystem:
-  * `memory_manager.py`: Long-term fact extraction, SQLite vector/text search, and persistence.
-  * `config_manager.py`: Settings, theme, and API key management.
-* **`dashboard/`**: Mobile remote control backend:
-  * `server.py`: FastAPI / Uvicorn WebSocket server with TLS and AES-256 encryption.
-  * `static/`: Mobile web application client (`app.html`, `login.html`, `crypto.js`).
-* **`plugins/`**: Drop-in extension folder for custom community tools.
+Outputs:
+* `dist/LUCY/`: Standalone application directory with bundled runtime.
+* `dist/LUCY.zip`: Production release archive.
+* `dist/SHA256SUMS.txt`: Cryptographic SHA-256 verification hashes.
 
 ---
 
 ## Configuration
 
-LUCY stores runtime configuration inside `config/api_keys.json` (auto-created on first run and excluded from git):
+Settings are stored in `config/api_keys.json` (auto-generated on initial boot and protected from git):
 
 ```json
 {
-    "gemini_api_key": "YOUR_GEMINI_API_KEY",
-    "assistant_name": "LUCY",
-    "user_name": "",
-    "voice_name": "Charon",
-    "ui_color": "#8b5cf6",
-    "personality_mode": "GF",
-    "hud_style": "face",
-    "wake_word_enabled": false
+  "gemini_api_key": "YOUR_GEMINI_API_KEY",
+  "assistant_name": "LUCY",
+  "user_name": "Boss",
+  "voice_name": "Charon",
+  "personality_mode": "GF",
+  "ui_color": "#8b5cf6",
+  "hud_style": "face",
+  "wake_word_enabled": false,
+  "location_settings": {
+    "mode": "auto",
+    "fallback_city": "New Delhi, India",
+    "timezone": "Asia/Kolkata"
+  },
+  "emergency_kill_switch": false
 }
 ```
 
-* Sensitive tokens, OAuth secrets, and personal memory databases are strictly kept in the local `config/` and `memory/` folders and ignored via `.gitignore`.
-
 ---
 
-## Current Status
+## License
 
-LUCY is actively under development. Features, automation capabilities, and integrations are continuously refined.
-
----
-
-## Branding
-
-The application is officially named **LUCY**.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

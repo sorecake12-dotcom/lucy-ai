@@ -48,23 +48,88 @@ _NAMED_COLOURS: dict[str, tuple[int, int, int]] = {
 }
 
 _DEFAULT_PALETTES: dict[str, tuple[tuple[int, int, int], ...]] = {
-    "car":      ((0, 200, 255), (140, 70, 255), (245, 55, 185)),   # LUCY signature
-    "heart":    ((255, 45, 85), (255, 120, 160)),                  # warm red → pink
-    "planet":   ((0, 180, 255), (0, 255, 136), (235, 245, 255)),   # ocean → land → ice
-    "earth":    ((0, 180, 255), (0, 255, 136), (235, 245, 255)),
-    "rocket":   ((235, 245, 255), (0, 220, 255), (255, 140, 30)),  # hull → window → flame
-    "tree":     ((150, 90, 40), (0, 255, 136), (0, 200, 120)),     # trunk → leaves
-    "cat":      ((255, 160, 60), (255, 200, 120)),                 # warm fur tones
-    "house":    ((0, 220, 255), (140, 70, 255), (255, 190, 30)),   # walls → roof → windows
-    "robot":    ((200, 220, 240), (0, 220, 255), (255, 45, 85)),   # chrome → eyes
-    "saturn":   ((255, 220, 140), (255, 190, 30), (200, 220, 240)),
-    "sphere":   ((0, 220, 255), (140, 70, 255)),
-    "cube":     ((0, 220, 255), (140, 70, 255)),
-    "star":     ((255, 200, 40), (255, 240, 120), (255, 255, 255)),
-    "flower":   ((0, 220, 120), (255, 200, 40), (255, 90, 190)),
-    "human":    ((0, 220, 255), (140, 70, 255), (235, 245, 255)),
-    "person":   ((0, 220, 255), (140, 70, 255), (235, 245, 255)),
+    "car":          ((0, 200, 255), (140, 70, 255), (245, 55, 185)),   # LUCY signature
+    "sports car":   ((255, 45, 85), (0, 220, 255), (40, 40, 60), (255, 230, 60)), # red body, cyan glass, wheels, lights
+    "television":   ((40, 40, 60), (0, 220, 255), (140, 70, 255)),     # frame, emissive screen, stand
+    "laptop":       ((180, 200, 220), (0, 220, 255), (100, 120, 150)), # silver body, cyan screen, keyboard
+    "fan":          ((150, 170, 200), (0, 255, 136), (100, 110, 130)), # stand, neon green blades, motor
+    "chair":        ((160, 100, 50), (200, 130, 70), (120, 70, 30)),   # wood seat, backrest, legs
+    "table":        ((150, 95, 45), (180, 120, 60), (110, 65, 25)),    # polished wood top, apron, legs
+    "bird":         ((0, 200, 255), (255, 160, 40), (245, 55, 185)),   # blue wings, golden beak, magenta
+    "animal":       ((220, 140, 60), (255, 200, 120), (80, 50, 30)),   # warm fur tones, ears, paws
+    "heart":        ((255, 45, 85), (255, 120, 160)),                  # warm red → pink
+    "planet":       ((0, 180, 255), (0, 255, 136), (235, 245, 255)),   # ocean → land → ice
+    "earth":        ((0, 180, 255), (0, 255, 136), (235, 245, 255)),
+    "rocket":       ((235, 245, 255), (0, 220, 255), (255, 140, 30)),  # hull → window → flame
+    "tree":         ((150, 90, 40), (0, 255, 136), (0, 200, 120)),     # trunk → leaves
+    "cat":          ((255, 160, 60), (255, 200, 120)),                 # warm fur tones
+    "house":        ((0, 220, 255), (140, 70, 255), (255, 190, 30)),   # walls → roof → windows
+    "robot":        ((200, 220, 240), (0, 220, 255), (255, 45, 85)),   # chrome → eyes
+    "saturn":       ((255, 220, 140), (255, 190, 30), (200, 220, 240)),
+    "sphere":       ((0, 220, 255), (140, 70, 255)),
+    "cube":         ((0, 220, 255), (140, 70, 255)),
+    "star":         ((255, 200, 40), (255, 240, 120), (255, 255, 255)),
+    "flower":       ((0, 220, 120), (255, 200, 40), (255, 90, 190)),
+    "human":        ((0, 220, 255), (140, 70, 255), (235, 245, 255)),
+    "person":       ((0, 220, 255), (140, 70, 255), (235, 245, 255)),
+    "human head":   ((0, 220, 255), (245, 55, 185), (140, 70, 255)),
+    "head":         ((0, 220, 255), (245, 55, 185), (140, 70, 255)),
+    "detailed face":((0, 220, 255), (245, 55, 185), (255, 230, 60)),
+    "face":         ((0, 220, 255), (245, 55, 185), (255, 230, 60)),
 }
+
+# Synonyms and alias resolution for natural-language visualization requests
+_SHAPE_ALIASES: dict[str, str] = {
+    "sportscar": "sports car",
+    "sports_car": "sports car",
+    "racing car": "sports car",
+    "supercar": "sports car",
+    "tv": "television",
+    "monitor": "television",
+    "screen": "television",
+    "laptop with screen": "laptop",
+    "notebook": "laptop",
+    "macbook": "laptop",
+    "standing fan": "fan",
+    "pedestal fan": "fan",
+    "desk fan": "fan",
+    "armchair": "chair",
+    "wooden chair": "chair",
+    "desk chair": "chair",
+    "seat": "chair",
+    "desk": "table",
+    "dining table": "table",
+    "flying bird": "bird",
+    "eagle": "bird",
+    "dove": "bird",
+    "dog": "animal",
+    "puppy": "animal",
+    "hound": "animal",
+    "horse": "animal",
+    "human head": "human head",
+    "skull": "human head",
+    "detailed face": "detailed face",
+    "human face": "detailed face",
+    "face": "detailed face",
+    "portrait": "detailed face",
+    "human silhouette": "human",
+    "man": "human",
+    "woman": "human",
+    "earth": "planet",
+    "globe": "planet",
+    "world": "planet",
+}
+
+
+def _normalize_shape_name(raw: str) -> str:
+    cleaned = raw.strip().lower()
+    if cleaned in _SHAPE_ALIASES:
+        return _SHAPE_ALIASES[cleaned]
+    # Check word inclusions
+    for alias, canonical in _SHAPE_ALIASES.items():
+        if alias in cleaned:
+            return canonical
+    return cleaned
 
 
 def _pick_palette(shape: str, colour_words: list[str]) -> list[tuple[int, int, int]]:
@@ -118,7 +183,7 @@ def visualize_object(parameters=None, player=None, **_ctx) -> str:
         blob.clear_object()
         return "Returning to the normal particle blob."
 
-    shape = raw
+    shape = _normalize_shape_name(raw)
     if shape not in SHAPE_BUILDERS:
         # Do NOT fake unsupported objects — report honestly and keep the blob.
         supported = ", ".join(available_shapes())
@@ -141,10 +206,13 @@ TOOL = {
     "description": (
         "Transforms LUCY's HUD particle blob into a rotating 3D particle object — "
         "call when the user asks to make/show/create/visualize something in particles "
-        "or as a 3D object (e.g. 'make a 3D car', 'show me a tree', 'create a red heart', "
-        "'show a rotating Earth', 'show a star', 'make a flower', 'show a human'). "
-        "Supported objects: car, heart, planet/earth, rocket, tree, cat, house, robot, "
-        "saturn, sphere, cube, star, flower, human. If the requested object is not "
+        "or as a 3D object (e.g. 'make a 3D car', 'make a red sports car', 'show a television', "
+        "'create a laptop with screen', 'show a fan', 'make a chair', 'make a table', "
+        "'show a tree', 'create a heart', 'show a bird', 'show an animal', 'show a human silhouette', "
+        "'show a human head', 'make a detailed face', 'show a rotating Earth', 'show a star', 'make a flower'). "
+        "Supported objects: car, sports car, television, laptop, fan, chair, table, tree, heart, "
+        "planet/earth, rocket, bird, animal, cat, house, robot, saturn, cube, sphere, star, flower, "
+        "human, human head, detailed face. If the requested object is not "
         "in the list, do NOT call this tool with a made-up object — instead tell the user "
         "it is not currently supported. Call with object 'none' to return to the normal blob "
         "(e.g. 'stop showing that', 'go back to normal')."
@@ -155,9 +223,9 @@ TOOL = {
             "object": {
                 "type": "STRING",
                 "description": (
-                    "Object to visualize. One of: car, heart, planet, earth, rocket, tree, "
-                    "cat, house, robot, saturn, sphere, cube, star, flower, human — or 'none' to restore the "
-                    "normal particle blob."
+                    "Object to visualize: car, sports car, television, laptop, fan, chair, table, "
+                    "tree, heart, planet, rocket, bird, animal, cat, house, robot, saturn, cube, sphere, "
+                    "star, flower, human, human head, detailed face — or 'none' to restore normal blob."
                 ),
             },
             "colors": {
