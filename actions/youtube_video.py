@@ -19,7 +19,7 @@ try:
 except ImportError:
     _TRANSCRIPT_OK = False
 
-from config import is_windows, is_mac, is_linux
+from core.platform_adapter import is_windows, is_mac, is_linux
 
 
 def _get_base_dir() -> Path:
